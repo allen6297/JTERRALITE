@@ -1,0 +1,11 @@
+rootProject.name = "TL"
+include("core")
+include("launcher")
+include("engine")
+include("api")
+include("content")
+include("runtime")
+include("tools")
+include("render")
+include("game")
+include("platform")
