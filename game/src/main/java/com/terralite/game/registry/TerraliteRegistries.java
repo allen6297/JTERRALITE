@@ -2,9 +2,11 @@ package com.terralite.game.registry;
 
 import com.terralite.core.registry.RegistryKey;
 import com.terralite.game.block.Block;
+import com.terralite.game.item.Item;
 
 public final class TerraliteRegistries {
     public static final RegistryKey<Block> BLOCKS = RegistryKey.of("terralite:blocks", Block.class);
+    public static final RegistryKey<Item> ITEMS = RegistryKey.of("terralite:items", Item.class);
 
     private TerraliteRegistries() {
     }

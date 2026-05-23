@@ -1,4 +1,4 @@
-rootProject.name = "TL"
+rootProject.name = "JTERRALITE"
 include("core")
 include("launcher")
 include("engine")

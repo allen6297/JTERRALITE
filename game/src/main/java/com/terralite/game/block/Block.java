@@ -4,7 +4,7 @@ import java.util.Objects;
 
 public record Block(BlockProperties properties) {
     public Block {
-        Objects.requireNonNull(properties, "properties");
+        Objects.requireNonNull(properties, "Block properties cannot be null");
     }
 
     public static Builder builder() {
@@ -20,8 +20,7 @@ public record Block(BlockProperties properties) {
         private String material = "stone";
         private String soundType = "stone";
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder hardness(float hardness) {
             this.hardness = hardness;
