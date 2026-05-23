@@ -3,7 +3,7 @@ package com.terralite.game.item.json;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.terralite.game.item.Item;
 
-public record ItemDeffinition(
+public record ItemDefinition(
         @JsonProperty(defaultValue = "1.0")
         float weight
         ) {
