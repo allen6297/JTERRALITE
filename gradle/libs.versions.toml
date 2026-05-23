@@ -1,0 +1,40 @@
+[versions]
+java = "21"
+junit = "5.10.0"
+jackson = "2.21.3"
+lwjgl = "3.4.1"
+imgui-java = "1.92.0"
+rhino = "1.9.1"
+slf4j = "2.0.18"
+logback = "1.5.32"
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+
+lwjgl-bom = { module = "org.lwjgl:lwjgl-bom", version.ref = "lwjgl" }
+lwjgl = { module = "org.lwjgl:lwjgl" }
+lwjgl-assimp = { module = "org.lwjgl:lwjgl-assimp" }
+lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw" }
+lwjgl-openal = { module = "org.lwjgl:lwjgl-openal" }
+lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl" }
+lwjgl-shaderc = { module = "org.lwjgl:lwjgl-shaderc" }
+lwjgl-stb = { module = "org.lwjgl:lwjgl-stb" }
+lwjgl-vma = { module = "org.lwjgl:lwjgl-vma" }
+lwjgl-vulkan = { module = "org.lwjgl:lwjgl-vulkan" }
+
+imgui-java-app = { module = "io.github.spair:imgui-java-app", version.ref = "imgui-java" }
+imgui-java-binding = { module = "io.github.spair:imgui-java-binding", version.ref = "imgui-java" }
+imgui-java-lwjgl3 = { module = "io.github.spair:imgui-java-lwjgl3", version.ref = "imgui-java" }
+imgui-java-natives-linux = { module = "io.github.spair:imgui-java-natives-linux", version.ref = "imgui-java" }
+imgui-java-natives-macos = { module = "io.github.spair:imgui-java-natives-macos", version.ref = "imgui-java" }
+imgui-java-natives-windows = { module = "io.github.spair:imgui-java-natives-windows", version.ref = "imgui-java" }
+
+rhino = { module = "org.mozilla:rhino", version.ref = "rhino" }
+
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }

@@ -1,20 +1,6 @@
-plugins {
-    id("java")
-}
-
-group = "org.Terralite"
-version = "1.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
+    implementation(project(":core"))
+    implementation(project(":content"))
 
-tasks.test {
-    useJUnitPlatform()
+    implementation(libs.imgui.java.app)
 }
