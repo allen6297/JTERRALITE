@@ -54,6 +54,15 @@ class RegistryTest {
     }
 
     @Test
+    void registryRejectsResourceKeysFromOtherRegistries() {
+        RegistryKey<TestBlock> items = RegistryKey.of("terralite:items", TestBlock.class);
+        ResourceKey<TestBlock> itemKey = ResourceKey.of(items, "terralite:stone");
+        MutableRegistry<TestBlock> blocks = new SimpleMutableRegistry<>(BLOCKS);
+
+        assertThrows(IllegalArgumentException.class, () -> blocks.register(itemKey, new TestBlock("stone")));
+    }
+
+    @Test
     void registryRejectsRegistrationAfterFreeze() {
         MutableRegistry<TestBlock> blocks = new SimpleMutableRegistry<>(BLOCKS);
         blocks.freeze();
