@@ -102,6 +102,30 @@ class StartupScriptApiTest {
     }
 
     @Test
+    void startupScriptCanRegisterTag() throws Exception {
+        ContentPack pack = writePack("base", """
+                StartupEvents.registry('block', function(event) {
+                  event.create('base:wheat').displayName('Wheat');
+                  event.create('base:carrot').displayName('Carrot');
+                });
+                StartupEvents.registry('tag', function(event) {
+                  event.create('base:crops')
+                    .description('Crop blocks')
+                    .member('base:wheat')
+                    .member('base:carrot');
+                });
+                """);
+
+        GameContentLoadReport report = new GameContentLoader().load(List.of(pack));
+
+        var tag = report.gameData().get(ResourceKey.of(TerraliteRegistries.TAGS, "base:crops"));
+        assertEquals("Crop blocks", tag.description());
+        assertEquals(2, tag.members().size());
+        assertEquals("base:wheat", tag.members().get(0).toString());
+        assertEquals("base:carrot", tag.members().get(1).toString());
+    }
+
+    @Test
     void blockScriptBuilderStubMethodsAreChainable() throws Exception {
         ContentPack pack = writePack("base", """
                 StartupEvents.registry('block', function(event) {

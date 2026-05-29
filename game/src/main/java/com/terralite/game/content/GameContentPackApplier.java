@@ -14,6 +14,8 @@ import com.terralite.game.category.json.CreativeCategoryJsonLoader;
 import com.terralite.game.item.Item;
 import com.terralite.game.item.json.ItemJsonLoader;
 import com.terralite.game.registry.TerraliteRegistries;
+import com.terralite.game.tag.Tag;
+import com.terralite.game.tag.json.TagJsonLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -74,6 +76,7 @@ public final class GameContentPackApplier {
         BlockJsonLoader blockLoader = new BlockJsonLoader();
         ItemJsonLoader itemLoader = new ItemJsonLoader();
         CreativeCategoryJsonLoader categoryLoader = new CreativeCategoryJsonLoader();
+        TagJsonLoader tagLoader = new TagJsonLoader();
 
         loaders.put("blocks", (file, registries) -> {
             MutableRegistry<Block> blocks = requireOrCreate(registries, TerraliteRegistries.BLOCKS);
@@ -92,6 +95,12 @@ public final class GameContentPackApplier {
                     requireOrCreate(registries, TerraliteRegistries.CREATIVE_CATEGORIES);
             try (InputStream input = Files.newInputStream(file.path())) {
                 categoryLoader.register(file.id(), input, categories);
+            }
+        });
+        loaders.put("tags", (file, registries) -> {
+            MutableRegistry<Tag> tags = requireOrCreate(registries, TerraliteRegistries.TAGS);
+            try (InputStream input = Files.newInputStream(file.path())) {
+                tagLoader.register(file.id(), input, tags);
             }
         });
 

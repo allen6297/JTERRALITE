@@ -4,6 +4,7 @@ import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.ResourceId;
 import com.terralite.game.block.Block;
 import com.terralite.game.item.Item;
+import com.terralite.game.tag.Tag;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.Scriptable;
@@ -15,10 +16,16 @@ import java.util.Objects;
 public final class StartupEventsScriptApi {
     private final MutableRegistry<Block> blockRegistry;
     private final MutableRegistry<Item> itemRegistry;
+    private final MutableRegistry<Tag> tagRegistry;
 
-    public StartupEventsScriptApi(MutableRegistry<Block> blockRegistry, MutableRegistry<Item> itemRegistry) {
+    public StartupEventsScriptApi(
+            MutableRegistry<Block> blockRegistry,
+            MutableRegistry<Item> itemRegistry,
+            MutableRegistry<Tag> tagRegistry
+    ) {
         this.blockRegistry = Objects.requireNonNull(blockRegistry, "blockRegistry");
         this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry");
+        this.tagRegistry = Objects.requireNonNull(tagRegistry, "tagRegistry");
     }
 
     public void registry(String type, Function fn) {
@@ -43,6 +50,13 @@ public final class StartupEventsScriptApi {
                     itemRegistry.register(builder.id(), builder.build());
                 }
             }
+            case "tag" -> {
+                TagRegistryEvent event = new TagRegistryEvent();
+                fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
+                for (TagScriptBuilder builder : event.pending) {
+                    tagRegistry.register(builder.id(), builder.build());
+                }
+            }
             default -> throw new IllegalArgumentException("Unknown registry type: " + type);
         }
     }
@@ -64,6 +78,17 @@ public final class StartupEventsScriptApi {
         public ItemScriptBuilder create(String id) {
             Objects.requireNonNull(id, "id");
             ItemScriptBuilder builder = new ItemScriptBuilder(ResourceId.id(id));
+            pending.add(builder);
+            return builder;
+        }
+    }
+
+    public static final class TagRegistryEvent {
+        private final List<TagScriptBuilder> pending = new ArrayList<>();
+
+        public TagScriptBuilder create(String id) {
+            Objects.requireNonNull(id, "id");
+            TagScriptBuilder builder = new TagScriptBuilder(ResourceId.id(id));
             pending.add(builder);
             return builder;
         }

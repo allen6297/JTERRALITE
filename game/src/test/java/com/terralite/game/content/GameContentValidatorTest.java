@@ -9,37 +9,42 @@ import com.terralite.game.block.Block;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
+import com.terralite.game.tag.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameContentValidatorTest {
+    private static RegistryManager baseRegistries() {
+        RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS);
+        registries.create(TerraliteRegistries.ITEMS);
+        registries.create(TerraliteRegistries.TAGS);
+        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+        return registries;
+    }
+
     @Test
     void passesWhenPlacesBlockReferencesExistingBlock() {
-        RegistryManager registries = new RegistryManager();
-        MutableRegistry<Block> blocks = registries.create(TerraliteRegistries.BLOCKS);
-        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
-        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
-
-        blocks.register(ResourceId.id("terralite:wheat"), Block.builder().build());
-        items.register(ResourceId.id("terralite:wheat_seeds"), Item.builder()
-                .placesBlock("terralite:wheat")
-                .build());
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:wheat"), Block.builder().build());
+        registries.requireMutable(TerraliteRegistries.ITEMS)
+                .register(ResourceId.id("terralite:wheat_seeds"), Item.builder()
+                        .placesBlock("terralite:wheat")
+                        .build());
 
         assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
     }
 
     @Test
     void reportsMissingPlacesBlockReference() {
-        RegistryManager registries = new RegistryManager();
-        registries.create(TerraliteRegistries.BLOCKS);
-        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
-        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
-
-        items.register(ResourceId.id("terralite:wheat_seeds"), Item.builder()
-                .placesBlock("terralite:wheat")
-                .build());
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.ITEMS)
+                .register(ResourceId.id("terralite:wheat_seeds"), Item.builder()
+                        .placesBlock("terralite:wheat")
+                        .build());
 
         ContentValidationResult result = new GameContentValidator().validate(registries.freeze());
 
@@ -49,22 +54,62 @@ class GameContentValidatorTest {
 
     @Test
     void ignoresItemsWithNullOrBlankPlacesBlock() {
-        RegistryManager registries = new RegistryManager();
-        registries.create(TerraliteRegistries.BLOCKS);
-        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
-        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.ITEMS)
+                .register(ResourceId.id("terralite:stone"), Item.builder().build());
 
-        items.register(ResourceId.id("terralite:stone"), Item.builder().build());
+        assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
+    }
+
+    @Test
+    void passesWhenTagMembersExist() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:wheat"), Block.builder().build());
+        registries.requireMutable(TerraliteRegistries.TAGS)
+                .register(ResourceId.id("terralite:crops"), Tag.builder()
+                        .description("Crop blocks")
+                        .member("terralite:wheat")
+                        .build());
+
+        assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
+    }
+
+    @Test
+    void reportsMissingTagMember() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.TAGS)
+                .register(ResourceId.id("terralite:crops"), Tag.builder()
+                        .description("Crop blocks")
+                        .member("terralite:wheat")
+                        .build());
+
+        ContentValidationResult result = new GameContentValidator().validate(registries.freeze());
+
+        assertEquals(1, result.issues().size());
+        assertEquals("tag.member.missing", result.issues().get(0).code());
+    }
+
+    @Test
+    void tagMemberCanBeItem() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.ITEMS)
+                .register(ResourceId.id("terralite:wheat_seeds"), Item.builder().build());
+        registries.requireMutable(TerraliteRegistries.TAGS)
+                .register(ResourceId.id("terralite:seeds"), Tag.builder()
+                        .description("Seed items")
+                        .member("terralite:wheat_seeds")
+                        .build());
 
         assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
     }
 
     @Test
     void passesWhenCategoryReferencesResolve() {
-        RegistryManager registries = new RegistryManager();
-        MutableRegistry<Block> blocks = registries.create(TerraliteRegistries.BLOCKS);
-        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
-        MutableRegistry<CreativeCategory> categories = registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+        RegistryManager registries = baseRegistries();
+        MutableRegistry<Block> blocks = registries.requireMutable(TerraliteRegistries.BLOCKS);
+        MutableRegistry<Item> items = registries.requireMutable(TerraliteRegistries.ITEMS);
+        MutableRegistry<CreativeCategory> categories = registries.requireMutable(TerraliteRegistries.CREATIVE_CATEGORIES);
 
         blocks.register(ResourceId.id("terralite:stone"), Block.builder()
                 .category("terralite:building_blocks")
@@ -83,17 +128,15 @@ class GameContentValidatorTest {
                 .entry("terralite:iron_pickaxe")
                 .build());
 
-        ContentValidationResult result = new GameContentValidator().validate(registries.freeze());
-
-        assertTrue(result.isValid());
+        assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
     }
 
     @Test
     void reportsMissingCategoryReferences() {
-        RegistryManager registries = new RegistryManager();
-        MutableRegistry<Block> blocks = registries.create(TerraliteRegistries.BLOCKS);
-        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
-        MutableRegistry<CreativeCategory> categories = registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+        RegistryManager registries = baseRegistries();
+        MutableRegistry<Block> blocks = registries.requireMutable(TerraliteRegistries.BLOCKS);
+        MutableRegistry<Item> items = registries.requireMutable(TerraliteRegistries.ITEMS);
+        MutableRegistry<CreativeCategory> categories = registries.requireMutable(TerraliteRegistries.CREATIVE_CATEGORIES);
 
         blocks.register(ResourceId.id("terralite:stone"), Block.builder()
                 .category("terralite:missing_category")

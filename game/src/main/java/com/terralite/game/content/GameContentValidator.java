@@ -10,6 +10,7 @@ import com.terralite.game.block.Block;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
+import com.terralite.game.tag.Tag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +23,12 @@ public final class GameContentValidator {
         List<ContentValidationIssue> issues = new ArrayList<>();
         FrozenRegistry<Block> blocks = registryOrNull(gameData, TerraliteRegistries.BLOCKS, issues);
         FrozenRegistry<Item> items = registryOrNull(gameData, TerraliteRegistries.ITEMS, issues);
+        FrozenRegistry<Tag> tags = registryOrNull(gameData, TerraliteRegistries.TAGS, issues);
         FrozenRegistry<CreativeCategory> categories =
                 registryOrNull(gameData, TerraliteRegistries.CREATIVE_CATEGORIES, issues);
 
         validateItemPlacesBlock(items, blocks, issues);
+        validateTagMembers(tags, blocks, items, issues);
 
         if (categories != null) {
             validateBlockCategories(blocks, categories, issues);
@@ -34,6 +37,29 @@ public final class GameContentValidator {
         }
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void validateTagMembers(
+            FrozenRegistry<Tag> tags,
+            FrozenRegistry<Block> blocks,
+            FrozenRegistry<Item> items,
+            List<ContentValidationIssue> issues
+    ) {
+        if (tags == null) {
+            return;
+        }
+
+        for (ResourceId tagId : tags.ids()) {
+            Tag tag = tags.require(tagId);
+            for (ResourceId memberId : tag.members()) {
+                if (!contains(blocks, memberId) && !contains(items, memberId)) {
+                    issues.add(ContentValidationIssue.of(
+                            "tag.member.missing",
+                            "Tag " + tagId + " references missing block or item " + memberId
+                    ));
+                }
+            }
+        }
     }
 
     private static void validateItemPlacesBlock(

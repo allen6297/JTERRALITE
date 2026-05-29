@@ -13,6 +13,7 @@ import com.terralite.game.block.Block;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.scripting.GameStartupScriptGlobals;
+import com.terralite.game.tag.Tag;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -62,10 +63,11 @@ public final class GameContentLoader {
         RegistryManager registries = new RegistryManager();
         MutableRegistry<Block> blockRegistry = registries.create(TerraliteRegistries.BLOCKS);
         MutableRegistry<Item> itemRegistry = registries.create(TerraliteRegistries.ITEMS);
+        MutableRegistry<Tag> tagRegistry = registries.create(TerraliteRegistries.TAGS);
         registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
 
         GameContentLoadResult loadResult = applier.apply(orderedPacks, registries);
-        List<StartupScriptGlobal> globals = GameStartupScriptGlobals.create(blockRegistry, itemRegistry);
+        List<StartupScriptGlobal> globals = GameStartupScriptGlobals.create(blockRegistry, itemRegistry, tagRegistry);
         ScriptExecutionReport startupScripts = startupScriptRunner.run(orderedPacks, globals);
         GameData gameData = registries.freeze();
         validator.validate(gameData).requireValid();
