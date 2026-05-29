@@ -8,6 +8,7 @@ import java.util.Objects;
 public record PackManifest(
         ResourceId id,
         String name,
+        int formatVersion,
         String version,
         String description,
         List<PackDependency> dependencies
@@ -19,6 +20,9 @@ public record PackManifest(
         }
         if (version == null || version.isBlank()) {
             throw new IllegalArgumentException("Pack version cannot be blank");
+        }
+        if (formatVersion < 1) {
+            throw new IllegalArgumentException("Pack format version must be positive");
         }
         description = description == null ? "" : description;
         dependencies = List.copyOf(Objects.requireNonNull(dependencies, "dependencies"));

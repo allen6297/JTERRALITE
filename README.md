@@ -17,6 +17,10 @@ JTERRALITE is a multi-module Gradle Java project.
 - `render`, `platform`, `launcher`, `runtime`, `tools`, `api`: support modules
   that are currently lighter-weight or smoke-tested.
 
+The design direction is a platform ecosystem rather than a monolithic game:
+engine code provides stable capability, packs define gameplay, scripts automate
+through exposed APIs, and JVM extensions add trusted engine capabilities.
+
 ## Registry Model
 
 The project uses `core` registries instead of global mutable singletons.
@@ -84,6 +88,53 @@ It scans content packs and routes data files by type:
 The generic `content` module should stay independent from `game`; routing that
 knows about concrete game registries belongs in the `game` module or a higher
 startup/runtime layer.
+
+Validation is split the same way:
+
+- `content.validation.PackDependencyValidator` checks duplicate pack ids and
+  missing required pack dependencies.
+- `content.loading.PackLoadOrderResolver` orders packs so dependencies load
+  before dependents and rejects dependency cycles.
+- `game.content.GameContentValidator` checks game registry references after
+  content is loaded and frozen, including block/item creative categories,
+  creative category icons, and creative category entries.
+- Validation returns `ContentValidationResult`; call `requireValid()` when
+  startup should fail on validation issues.
+
+Use `game.content.GameContentLoader` as the startup-facing facade when possible.
+It discovers or accepts packs, resolves dependency order, creates the core game
+registries, applies JSON content, freezes `GameData`, and runs game validation.
+
+Suggested pack layout:
+
+```text
+packs/example/
+  pack.json
+  data/example/blocks/
+  data/example/items/
+  data/example/recipes/
+  data/example/tags/
+  data/example/worldgen/
+  assets/example/textures/
+  assets/example/models/
+  assets/example/sounds/
+  assets/example/shaders/
+  assets/example/lang/
+  scripts/startup/
+  scripts/server/
+  scripts/client/
+```
+
+Script scope rules from the design doc:
+
+- `scripts/startup`: runs during content loading before registries freeze.
+- `scripts/server`: runs on the authoritative simulation side.
+- `scripts/client`: runs locally for presentation only and is never gameplay
+  authoritative.
+
+`content.scripting.ScriptContentScanner` currently discovers `.js` files in
+those three scope directories. Execution and API exposure are separate future
+steps.
 
 ## Testing
 

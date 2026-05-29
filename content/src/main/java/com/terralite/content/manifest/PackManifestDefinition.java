@@ -7,6 +7,7 @@ import java.util.List;
 record PackManifestDefinition(
         String id,
         String name,
+        Integer formatVersion,
         String version,
         String description,
         List<PackDependencyDefinition> dependencies
@@ -15,6 +16,7 @@ record PackManifestDefinition(
         return new PackManifest(
                 ResourceId.id(id),
                 defaultString(name, id),
+                formatVersion == null ? 1 : formatVersion,
                 defaultString(version, "1.0.0"),
                 defaultString(description, ""),
                 parseDependencies(dependencies)

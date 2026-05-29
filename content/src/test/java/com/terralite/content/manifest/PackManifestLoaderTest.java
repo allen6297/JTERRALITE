@@ -18,6 +18,7 @@ class PackManifestLoaderTest {
             {
               "id": "terralite:base",
               "name": "Terralite Base",
+              "formatVersion": 1,
               "version": "1.0.0",
               "description": "Built-in content.",
               "dependencies": [
@@ -31,6 +32,7 @@ class PackManifestLoaderTest {
 
         assertEquals(ResourceId.id("terralite:base"), manifest.id());
         assertEquals("Terralite Base", manifest.name());
+        assertEquals(1, manifest.formatVersion());
         assertEquals("1.0.0", manifest.version());
         assertEquals("Built-in content.", manifest.description());
         assertEquals(List.of(
@@ -39,6 +41,21 @@ class PackManifestLoaderTest {
         ), manifest.dependencies());
         assertFalse(manifest.dependencies().get(0).optional());
         assertTrue(manifest.dependencies().get(1).optional());
+    }
+
+    @Test
+    void defaultsPackFormatVersion() throws Exception {
+        String json = """
+            {
+              "id": "terralite:base",
+              "name": "Terralite Base",
+              "version": "1.0.0"
+            }
+            """;
+
+        PackManifest manifest = new PackManifestLoader().load(stream(json));
+
+        assertEquals(1, manifest.formatVersion());
     }
 
     private static ByteArrayInputStream stream(String json) {
