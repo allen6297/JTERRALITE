@@ -1,24 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="runtime - test" type="GradleRunConfiguration" factoryName="Gradle">
-    <ExternalSystemSettings>
-      <option name="executionName" />
-      <option name="externalProjectPath" value="$PROJECT_DIR$" />
-      <option name="externalSystemIdString" value="GRADLE" />
-      <option name="scriptParameters" value="" />
-      <option name="taskDescriptions">
-        <list />
-      </option>
-      <option name="taskNames">
-        <list>
-          <option value=":runtime:test" />
-        </list>
-      </option>
-      <option name="vmOptions" />
-    </ExternalSystemSettings>
-    <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
-    <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
-    <DebugAllEnabled>false</DebugAllEnabled>
-    <RunAsTest>false</RunAsTest>
-    <method v="2" />
+  <configuration default="false" name="runtime - test" type="JUnit" factoryName="JUnit">
+    <module name="JTERRALITE.runtime.test" />
+    <option name="TEST_OBJECT" value="directory" />
+    <dir value="$PROJECT_DIR$/runtime/src/test/java" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
   </configuration>
 </component>
