@@ -17,6 +17,7 @@
             <option value="$PROJECT_DIR$/platform" />
             <option value="$PROJECT_DIR$/render" />
             <option value="$PROJECT_DIR$/runtime" />
+            <option value="$PROJECT_DIR$/server" />
             <option value="$PROJECT_DIR$/tools" />
           </set>
         </option>

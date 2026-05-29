@@ -14,6 +14,8 @@ JTERRALITE is a multi-module Gradle Java project.
   JSON definitions, and Terralite registry keys.
 - `content`: early content pipeline space for assets, packs, tags, recipes,
   localization, dependency handling, and validation.
+- `server`: authoritative server lifecycle boundary that owns simulation
+  ticking through the engine.
 - `render`, `platform`, `launcher`, `runtime`, `tools`, `api`: support modules
   that are currently lighter-weight or smoke-tested.
 
@@ -148,11 +150,48 @@ This records script diagnostics in `GameContentLoadReport.startupScripts()`.
 Future work should expose safe registry builders for startup scripts instead of
 letting scripts touch internal registry state directly.
 
+Server script execution runs through `content.scripting.ServerScriptHost`.
+`TerraliteServer` loads configured content pack server scripts when the server
+starts. The current server script API is intentionally minimal:
+
+```js
+api.info("message");
+api.onTick(function(tick) {
+  api.info("tick " + tick.index);
+  api.info("entities " + api.world().entityCount());
+  api.world().loadChunk(0, 0, 0);
+});
+```
+
+This records diagnostics in `TerraliteServer.serverScripts()`. Tick handlers
+receive `index`, `deltaMillis`, and `totalMillis`. `api.world()` is a read-only
+view for entities and a controlled chunk API with `entityCount()`,
+`chunkCount()`, `hasChunk(x, y, z)`, `loadChunk(x, y, z)`, and
+`unloadChunk(x, y, z)`.
+
+## Server Runtime
+
+`server` is the first boundary for the server-authoritative model from the
+design doc. `TerraliteServer` owns a configured `GameEngine`, runs configured
+server scripts on start, invokes server script tick handlers during simulation,
+exposes start/advance/stop lifecycle methods, and treats the engine world as
+authoritative state.
+
+Current scope:
+
+- no networking yet
+- no dedicated/integrated server split yet
+- no server script block or entity mutation APIs yet
+
+Use this module for simulation-side orchestration before adding multiplayer or
+client presentation concerns.
+
 ## Testing
 
 Run focused tests while working:
 
 ```powershell
+.\gradlew.bat :server:test
 .\gradlew.bat :game:test
 .\gradlew.bat :content:test
 ```
@@ -182,6 +221,7 @@ JDKs. Those warnings are not test failures.
 Likely next additions:
 
 - Content-pack discovery in `content`.
+- Safe block-facing server script APIs.
 - Validation that category entries reference existing blocks/items.
 - Tag support for grouping content beyond creative UI categories.
 - Data-driven recipes and localization keys.
