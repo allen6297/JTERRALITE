@@ -20,15 +20,20 @@ final class ScriptScopeRunner {
     }
 
     ScriptExecutionReport run(List<ContentPack> packs, ScriptScope scope) throws IOException {
+        return run(packs, scope, List.of());
+    }
+
+    ScriptExecutionReport run(List<ContentPack> packs, ScriptScope scope, List<StartupScriptGlobal> extraGlobals) throws IOException {
         Objects.requireNonNull(packs, "packs");
         Objects.requireNonNull(scope, "scope");
+        Objects.requireNonNull(extraGlobals, "extraGlobals");
 
         int executedScripts = 0;
         List<ScriptExecutionMessage> messages = new ArrayList<>();
         for (ContentPack pack : packs) {
             for (ScriptContentFile script : scanner.scan(pack)) {
                 if (script.scope() == scope) {
-                    execute(script, messages);
+                    execute(script, messages, extraGlobals);
                     executedScripts++;
                 }
             }
@@ -37,7 +42,7 @@ final class ScriptScopeRunner {
         return new ScriptExecutionReport(executedScripts, messages);
     }
 
-    private static void execute(ScriptContentFile script, List<ScriptExecutionMessage> messages) throws IOException {
+    private static void execute(ScriptContentFile script, List<ScriptExecutionMessage> messages, List<StartupScriptGlobal> extraGlobals) throws IOException {
         String source = Files.readString(script.path());
         Context context = Context.enter();
         try {
@@ -45,6 +50,9 @@ final class ScriptScopeRunner {
             Scriptable scope = context.initStandardObjects();
             ScriptRuntimeApi api = new ScriptRuntimeApi(script.scope(), script.path(), messages);
             ScriptableObject.putProperty(scope, "api", Context.javaToJS(api, scope));
+            for (StartupScriptGlobal global : extraGlobals) {
+                ScriptableObject.putProperty(scope, global.name(), Context.javaToJS(global.value(), scope));
+            }
             context.evaluateString(scope, source, script.path().toString(), 1, null);
         } catch (RhinoException exception) {
             throw new ScriptExecutionException("Failed to execute " + script.scope().directoryName()

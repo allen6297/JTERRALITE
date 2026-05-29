@@ -10,5 +10,7 @@ public interface MutableRegistry<T> extends Registry<T> {
         return register(resourceKey.id(), value);
     }
 
+    T replace(ResourceId id, T value);
+
     FrozenRegistry<T> freeze();
 }

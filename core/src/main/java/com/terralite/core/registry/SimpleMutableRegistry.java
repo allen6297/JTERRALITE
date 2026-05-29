@@ -39,6 +39,23 @@ public final class SimpleMutableRegistry<T> implements MutableRegistry<T> {
     }
 
     @Override
+    public T replace(ResourceId id, T value) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(value, "value");
+
+        if (frozen) {
+            throw new IllegalStateException("Registry is frozen: " + key.id());
+        }
+
+        if (!entries.containsKey(id)) {
+            throw new IllegalArgumentException("No registry entry to replace: " + id);
+        }
+
+        entries.put(id, value);
+        return value;
+    }
+
+    @Override
     public Optional<T> get(ResourceId id) {
         return Optional.ofNullable(entries.get(id));
     }

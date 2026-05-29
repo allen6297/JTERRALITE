@@ -13,14 +13,31 @@ public record Item(ItemProperties properties) {
     }
     public static Builder builder() {return new Builder();}
     public static final class Builder {
+        private String displayName = "";
         private float weight = 1.0f;
+        private int stackSize = 64;
+        private String placesBlock = null;
         private final List<ResourceId> categories = new ArrayList<>();
 
         private Builder() {}
 
-        public Builder weight(float weight) {
+        public Builder displayName(String displayName) {
+            this.displayName = Objects.requireNonNull(displayName, "displayName");
+            return this;
+        }
 
+        public Builder weight(float weight) {
             this.weight = weight;
+            return this;
+        }
+
+        public Builder stackSize(int stackSize) {
+            this.stackSize = stackSize;
+            return this;
+        }
+
+        public Builder placesBlock(String placesBlock) {
+            this.placesBlock = placesBlock;
             return this;
         }
 
@@ -39,10 +56,14 @@ public record Item(ItemProperties properties) {
             return this;
         }
 
-        public Item build() {return new Item(new ItemProperties(
-                weight,
-                List.copyOf(categories)
-        ));
+        public Item build() {
+            return new Item(new ItemProperties(
+                    displayName,
+                    weight,
+                    stackSize,
+                    placesBlock,
+                    List.copyOf(categories)
+            ));
         }
     }
 

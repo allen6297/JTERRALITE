@@ -7,6 +7,8 @@ import com.terralite.game.block.Block;
 import java.util.List;
 
 public record BlockDefinition(
+    @JsonProperty("display_name")
+    String displayName,
     @JsonProperty(defaultValue = "1.0")
     float hardness,
     @JsonProperty(defaultValue = "1.0")
@@ -24,6 +26,7 @@ public record BlockDefinition(
 ) {
     public Block toBlock() {
         return Block.builder()
+            .displayName(displayName != null ? displayName : "")
             .hardness(hardness)
             .resistance(resistance)
             .solid(solid)

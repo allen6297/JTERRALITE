@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 
 public record BlockProperties(
+    String displayName,
     float hardness,
     float resistance,
     boolean solid,
@@ -16,6 +17,7 @@ public record BlockProperties(
     List<ResourceId> categories
 ) {
     public BlockProperties {
+        Objects.requireNonNull(displayName, "displayName");
         if (hardness < 0.0f) {
             throw new IllegalArgumentException("Block hardness cannot be negative");
         }

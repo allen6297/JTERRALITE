@@ -17,6 +17,7 @@ public record Block(BlockProperties properties) {
     }
 
     public static final class Builder {
+        private String displayName = "";
         private float hardness = 1.0f;
         private float resistance = 1.0f;
         private boolean solid = true;
@@ -27,6 +28,11 @@ public record Block(BlockProperties properties) {
         private final List<ResourceId> categories = new ArrayList<>();
 
         private Builder() {}
+
+        public Builder displayName(String displayName) {
+            this.displayName = Objects.requireNonNull(displayName, "displayName");
+            return this;
+        }
 
         public Builder hardness(float hardness) {
             this.hardness = hardness;
@@ -80,6 +86,7 @@ public record Block(BlockProperties properties) {
 
         public Block build() {
             return new Block(new BlockProperties(
+                displayName,
                 hardness,
                 resistance,
                 solid,

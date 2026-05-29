@@ -4,10 +4,15 @@ import com.terralite.content.loading.ContentPackDiscovery;
 import com.terralite.content.loading.PackLoadOrderResolver;
 import com.terralite.content.pack.ContentPack;
 import com.terralite.content.scripting.ScriptExecutionReport;
+import com.terralite.content.scripting.StartupScriptGlobal;
 import com.terralite.content.scripting.StartupScriptRunner;
 import com.terralite.core.registry.GameData;
+import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.RegistryManager;
+import com.terralite.game.block.Block;
+import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
+import com.terralite.game.scripting.GameStartupScriptGlobals;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -55,19 +60,17 @@ public final class GameContentLoader {
 
         List<ContentPack> orderedPacks = orderResolver.resolve(packs);
         RegistryManager registries = new RegistryManager();
-        createGameRegistries(registries);
+        MutableRegistry<Block> blockRegistry = registries.create(TerraliteRegistries.BLOCKS);
+        MutableRegistry<Item> itemRegistry = registries.create(TerraliteRegistries.ITEMS);
+        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
 
         GameContentLoadResult loadResult = applier.apply(orderedPacks, registries);
-        ScriptExecutionReport startupScripts = startupScriptRunner.run(orderedPacks);
+        List<StartupScriptGlobal> globals = GameStartupScriptGlobals.create(blockRegistry, itemRegistry);
+        ScriptExecutionReport startupScripts = startupScriptRunner.run(orderedPacks, globals);
         GameData gameData = registries.freeze();
         validator.validate(gameData).requireValid();
 
         return new GameContentLoadReport(orderedPacks, loadResult, startupScripts, gameData);
     }
 
-    private static void createGameRegistries(RegistryManager registries) {
-        registries.create(TerraliteRegistries.BLOCKS);
-        registries.create(TerraliteRegistries.ITEMS);
-        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
-    }
 }

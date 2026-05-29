@@ -17,6 +17,10 @@ public final class StartupScriptRunner {
     }
 
     public ScriptExecutionReport run(List<ContentPack> packs) throws IOException {
-        return scopeRunner.run(packs, ScriptScope.STARTUP);
+        return run(packs, List.of());
+    }
+
+    public ScriptExecutionReport run(List<ContentPack> packs, List<StartupScriptGlobal> extraGlobals) throws IOException {
+        return scopeRunner.run(packs, ScriptScope.STARTUP, extraGlobals);
     }
 }
