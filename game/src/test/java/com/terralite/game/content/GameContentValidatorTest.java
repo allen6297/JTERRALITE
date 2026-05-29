@@ -16,6 +16,50 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameContentValidatorTest {
     @Test
+    void passesWhenPlacesBlockReferencesExistingBlock() {
+        RegistryManager registries = new RegistryManager();
+        MutableRegistry<Block> blocks = registries.create(TerraliteRegistries.BLOCKS);
+        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
+        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+
+        blocks.register(ResourceId.id("terralite:wheat"), Block.builder().build());
+        items.register(ResourceId.id("terralite:wheat_seeds"), Item.builder()
+                .placesBlock("terralite:wheat")
+                .build());
+
+        assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
+    }
+
+    @Test
+    void reportsMissingPlacesBlockReference() {
+        RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS);
+        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
+        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+
+        items.register(ResourceId.id("terralite:wheat_seeds"), Item.builder()
+                .placesBlock("terralite:wheat")
+                .build());
+
+        ContentValidationResult result = new GameContentValidator().validate(registries.freeze());
+
+        assertEquals(1, result.issues().size());
+        assertEquals("item.places_block.missing", result.issues().get(0).code());
+    }
+
+    @Test
+    void ignoresItemsWithNullOrBlankPlacesBlock() {
+        RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS);
+        MutableRegistry<Item> items = registries.create(TerraliteRegistries.ITEMS);
+        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+
+        items.register(ResourceId.id("terralite:stone"), Item.builder().build());
+
+        assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
+    }
+
+    @Test
     void passesWhenCategoryReferencesResolve() {
         RegistryManager registries = new RegistryManager();
         MutableRegistry<Block> blocks = registries.create(TerraliteRegistries.BLOCKS);

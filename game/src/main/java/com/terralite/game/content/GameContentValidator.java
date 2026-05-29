@@ -25,6 +25,8 @@ public final class GameContentValidator {
         FrozenRegistry<CreativeCategory> categories =
                 registryOrNull(gameData, TerraliteRegistries.CREATIVE_CATEGORIES, issues);
 
+        validateItemPlacesBlock(items, blocks, issues);
+
         if (categories != null) {
             validateBlockCategories(blocks, categories, issues);
             validateItemCategories(items, categories, issues);
@@ -32,6 +34,30 @@ public final class GameContentValidator {
         }
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void validateItemPlacesBlock(
+            FrozenRegistry<Item> items,
+            FrozenRegistry<Block> blocks,
+            List<ContentValidationIssue> issues
+    ) {
+        if (items == null) {
+            return;
+        }
+
+        for (ResourceId itemId : items.ids()) {
+            Item item = items.require(itemId);
+            String placesBlock = item.properties().placesBlock();
+            if (placesBlock != null && !placesBlock.isBlank()) {
+                ResourceId blockId = ResourceId.id(placesBlock);
+                if (!contains(blocks, blockId)) {
+                    issues.add(ContentValidationIssue.of(
+                            "item.places_block.missing",
+                            "Item " + itemId + " references missing block " + blockId + " in placesBlock"
+                    ));
+                }
+            }
+        }
     }
 
     private static void validateBlockCategories(

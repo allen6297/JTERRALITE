@@ -47,6 +47,9 @@ class StartupScriptApiTest {
     @Test
     void startupScriptCanRegisterItem() throws Exception {
         ContentPack pack = writePack("base", """
+                StartupEvents.registry('block', function(event) {
+                  event.create('base:wheat').displayName('Wheat');
+                });
                 StartupEvents.registry('item', function(event) {
                   event.create('base:wheat_seeds')
                     .displayName('Wheat Seeds')
