@@ -10,9 +10,9 @@ JTERRALITE is a multi-module Gradle Java project.
 - `core`: shared foundations such as registries, resource ids, and logging.
 - `engine`: runtime game systems, world state, chunks, terrain, physics, input,
   camera, entities, simulation, time, weather, and saving.
-- `game`: game-facing domain types such as blocks, items, creative categories,
-  JSON definitions, and Terralite registry keys.
-- `content`: early content pipeline space for assets, packs, tags, recipes,
+- `game`: game-facing domain types such as blocks, items, biomes, tags, creative
+  categories, JSON definitions, and Terralite registry keys.
+- `content`: early content pipeline space for assets, packs, scripting,
   localization, dependency handling, and validation.
 - `server`: authoritative server lifecycle boundary that owns simulation
   ticking through the engine.
@@ -42,14 +42,18 @@ Current game registries:
 
 - `terralite:blocks`
 - `terralite:items`
+- `terralite:biomes`
+- `terralite:tags`
 - `terralite:creative_categories`
 
 ## Content Patterns
 
-Blocks and items are immutable records with builder APIs.
+Blocks, items, biomes, and tags are immutable records with builder APIs.
 
 - Blocks: `game.block.Block`, `BlockProperties`, and `block.json.BlockJsonLoader`.
 - Items: `game.item.Item`, `ItemProperties`, and `item.json.ItemJsonLoader`.
+- Biomes: `game.biome.Biome`, `BiomeProperties`, and `biome.json.BiomeJsonLoader`.
+- Tags: `game.tag.Tag`, and `tag.json.TagJsonLoader`.
 - Creative categories: `game.category.CreativeCategory`,
   `CreativeCategories`, and `category.json.CreativeCategoryJsonLoader`.
 
@@ -61,12 +65,22 @@ JSON loaders should:
 - Provide a `register(ResourceId, InputStream, MutableRegistry<T>)` helper.
 - Keep defaults in the definition conversion layer, not in tests.
 
+Key properties on domain types:
+
+- `Block`: `displayName`, `hardness`, `resistance`, `solid`, `transparent`,
+  `requiresTool`, `material`, `soundType`, `categories`.
+- `Item`: `displayName`, `weight`, `stackSize`, `placesBlock`, `categories`.
+- `Biome`: `name`, `priority`, `rarity`, temperature/humidity ranges,
+  `baseHeight`, `heightVariation`, `surfaceTop`, `surfaceMiddle`,
+  `surfaceMiddleDepth`, `surfaceBase`.
+- `Tag`: `description`, `members` (list of block or item `ResourceId`s).
+
 Category membership is stored on block and item properties as
 `List<ResourceId> categories`. Category definitions can also define ordered
 `entries` for UI-like creative tab ordering.
 
 Content packs live as directories with a `pack.json` manifest at the root.
-Minecraft-like JSON discovery currently scans:
+JSON discovery scans:
 
 - `data/<namespace>/<type>/<path>.json`
 - `assets/<namespace>/<type>/<path>.json`
@@ -88,6 +102,8 @@ It scans content packs and routes data files by type:
 
 - `blocks` -> `BlockJsonLoader` -> `terralite:blocks`
 - `items` -> `ItemJsonLoader` -> `terralite:items`
+- `biomes` -> `BiomeJsonLoader` -> `terralite:biomes`
+- `tags` -> `TagJsonLoader` -> `terralite:tags`
 - `creative_categories` -> `CreativeCategoryJsonLoader` ->
   `terralite:creative_categories`
 
@@ -102,14 +118,19 @@ Validation is split the same way:
 - `content.loading.PackLoadOrderResolver` orders packs so dependencies load
   before dependents and rejects dependency cycles.
 - `game.content.GameContentValidator` checks game registry references after
-  content is loaded and frozen, including block/item creative categories,
-  creative category icons, and creative category entries.
+  content is loaded and frozen:
+  - block/item category references exist in `creative_categories`
+  - creative category icons and entries exist in blocks or items
+  - item `placesBlock` references an existing block (`item.places_block.missing`)
+  - biome surface block references exist in blocks (`biome.surface.missing`)
+  - tag members exist in blocks or items (`tag.member.missing`)
 - Validation returns `ContentValidationResult`; call `requireValid()` when
   startup should fail on validation issues.
 
 Use `game.content.GameContentLoader` as the startup-facing facade when possible.
 It discovers or accepts packs, resolves dependency order, creates the core game
-registries, applies JSON content, freezes `GameData`, and runs game validation.
+registries, applies JSON content, runs startup scripts, freezes `GameData`, and
+runs game validation.
 
 Suggested pack layout:
 
@@ -118,8 +139,9 @@ packs/example/
   pack.json
   data/example/blocks/
   data/example/items/
-  data/example/recipes/
+  data/example/biomes/
   data/example/tags/
+  data/example/recipes/
   data/example/worldgen/
   assets/example/textures/
   assets/example/models/
@@ -138,25 +160,88 @@ Script scope rules from the design doc:
 - `scripts/client`: runs locally for presentation only and is never gameplay
   authoritative.
 
-`content.scripting.ScriptContentScanner` currently discovers `.js` files in
-those three scope directories. Execution and API exposure are separate future
-steps.
+## Startup Script API
 
-Startup script execution now runs through `content.scripting.StartupScriptRunner`
-as part of `GameContentLoader`, after JSON content is applied and before
-registries freeze. The current script API is intentionally minimal:
+Startup scripts run through `content.scripting.StartupScriptRunner` as part of
+`GameContentLoader`, after JSON content is applied and before registries freeze.
+Two globals are exposed: `StartupEvents` and `Registry`.
+
+### StartupEvents.registry
+
+The primary way to register content in a startup script. Supports types
+`block`, `item`, `biome`, and `tag`.
 
 ```js
-api.info("message");
+StartupEvents.registry('block', function(event) {
+  event.create('base:granite')
+    .displayName('Granite')
+    .solid(true)
+    .material('rock')
+    .hardness(1.5)
+    .resistance(6.0);
+});
+
+StartupEvents.registry('item', function(event) {
+  event.create('base:wheat_seeds')
+    .displayName('Wheat Seeds')
+    .stackSize(99)
+    .placesBlock('base:wheat');
+});
+
+StartupEvents.registry('biome', function(event) {
+  event.create('base:temperate_forest')
+    .name('Temperate Forest')
+    .priority(10)
+    .rarity(1.0)
+    .temperature(0.30, 0.70)
+    .humidity(0.40, 0.80)
+    .terrain(48, 14)
+    .surfaceTop('base:grass')
+    .surfaceMiddle('base:dirt')
+    .surfaceMiddleDepth(3)
+    .surfaceBase('base:stone');
+});
+
+StartupEvents.registry('tag', function(event) {
+  event.create('base:crops')
+    .description('Crop blocks')
+    .member('base:wheat')
+    .member('base:carrot');
+});
 ```
 
-This records script diagnostics in `GameContentLoadReport.startupScripts()`.
-Future work should expose safe registry builders for startup scripts instead of
-letting scripts touch internal registry state directly.
+### Registry
+
+Read and patch existing entries from JSON or earlier scripts.
+
+```js
+var stone = Registry.getBlock('base:stone');
+var seeds = Registry.getItem('base:wheat_seeds');
+var plains = Registry.getBiome('base:plains');
+
+Registry.modifyBlock('base:copper_ore', function(block) {
+  block.displayName = 'Dense Copper Ore';
+  block.hardness = 4.0;
+});
+```
+
+Script diagnostics are recorded in `GameContentLoadReport.startupScripts()`.
+
+The startup script API lives in `game.scripting`:
+- `StartupEventsScriptApi` — `registry(type, fn)`
+- `BlockScriptBuilder`, `ItemScriptBuilder`, `BiomeScriptBuilder`, `TagScriptBuilder` — chainable builders
+- `RegistryScriptApi` — `getBlock`, `getItem`, `getBiome`, `modifyBlock`
+- `GameStartupScriptGlobals` — wires the above into `StartupScriptRunner`
+
+The `content` module exposes `StartupScriptGlobal` as a bridge so `game`-specific
+globals can be injected into the script runtime without creating a dependency from
+`content` to `game`.
+
+## Server Script API
 
 Server script execution runs through `content.scripting.ServerScriptHost`.
 `TerraliteServer` loads configured content pack server scripts when the server
-starts. The current server script API is intentionally minimal:
+starts. The current server script API:
 
 ```js
 api.info("message");
@@ -201,12 +286,33 @@ Current scope:
 
 - lifecycle and frame boundary only
 - scene submission types for camera, chunks, and placeholder render objects
-- no window/swapchain ownership yet
+- GLFW window lifecycle skeleton behind `RenderWindow` and `GlfwRenderBackend`
 - no Vulkan renderer implementation yet
 - no mesh, material, or chunk rendering yet
 
 Use `RecordingRenderBackend` in tests when validating renderer-facing code
 without opening a native window or GPU backend.
+Use `GlfwRenderBackend` with `GlfwWindow` for native window lifecycle work; it
+currently creates a GLFW no-API window and reports framebuffer viewport size,
+but does not draw yet.
+Use `OpenGlRenderBackend` with a GLFW window configured via
+`WindowConfig.openGl(...)` to create an OpenGL context, clear each frame to
+`RenderFrame.clearColor()`, draw a reusable `DebugMesh` triangle, and swap
+buffers. Loaded `RenderScene` chunks are currently drawn as temporary 2D debug
+square markers generated by `ChunkDebugMeshFactory`, with cached mesh lifetimes
+keyed by chunk position.
+
+Manual OpenGL smoke check:
+
+```powershell
+.\gradlew.bat :tools:runOpenGlSmoke
+```
+
+Pass a duration in seconds to keep the color-cleared window open longer:
+
+```powershell
+.\gradlew.bat :tools:runOpenGlSmoke --args="10"
+```
 
 `runtime.render.RenderSceneExtractor` adapts engine state into render-owned
 scene data:
@@ -214,6 +320,10 @@ scene data:
 - `Camera` -> `RenderCamera`
 - loaded world chunks -> `RenderChunk`
 - entities with `PhysicsComponents.TRANSFORM` -> placeholder `RenderObject`
+
+`runtime.render.RenderPipeline` composes the extractor with a `Renderer` so
+runtime code can render one frame from the current `World`, `Camera`,
+`Viewport`, and `ClearColor`.
 
 ## Testing
 
@@ -251,11 +361,9 @@ JDKs. Those warnings are not test failures.
 
 Likely next additions:
 
-- Content-pack discovery in `content`.
-- Safe block-facing server script APIs.
-- Runtime render loop composition using `RenderSceneExtractor`.
+- Data-driven recipes referencing blocks, items, and tags.
+- Localization keys for block/item/biome display names.
+- Safe block-facing and entity-facing server script APIs.
 - Real render backend bootstrap behind the `RenderBackend` interface.
-- Validation that category entries reference existing blocks/items.
-- Tag support for grouping content beyond creative UI categories.
-- Data-driven recipes and localization keys.
 - Runtime inventory or creative menu views that consume category registries.
+- Registry remapping and save migration system.
