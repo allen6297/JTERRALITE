@@ -16,8 +16,12 @@ JTERRALITE is a multi-module Gradle Java project.
   localization, dependency handling, and validation.
 - `server`: authoritative server lifecycle boundary that owns simulation
   ticking through the engine.
-- `render`, `platform`, `launcher`, `runtime`, `tools`, `api`: support modules
-  that are currently lighter-weight or smoke-tested.
+- `render`: renderer lifecycle and backend abstraction; Vulkan/LWJGL
+  dependencies are present, but the real backend is still future work.
+- `runtime`: application composition utilities, including extraction of engine
+  world/camera state into render scene submissions.
+- `platform`, `launcher`, `tools`, `api`: support modules that are
+  currently lighter-weight or smoke-tested.
 
 The design direction is a platform ecosystem rather than a monolithic game:
 engine code provides stable capability, packs define gameplay, scripts automate
@@ -186,12 +190,39 @@ Current scope:
 Use this module for simulation-side orchestration before adding multiplayer or
 client presentation concerns.
 
+## Rendering
+
+`render` currently defines the backend-agnostic renderer boundary. `Renderer`
+owns lifecycle state and delegates frames to a `RenderBackend`. `RenderFrame`
+describes the viewport, clear color, and submitted `RenderScene` for a frame,
+while `RenderStats` reports frame output from the backend.
+
+Current scope:
+
+- lifecycle and frame boundary only
+- scene submission types for camera, chunks, and placeholder render objects
+- no window/swapchain ownership yet
+- no Vulkan renderer implementation yet
+- no mesh, material, or chunk rendering yet
+
+Use `RecordingRenderBackend` in tests when validating renderer-facing code
+without opening a native window or GPU backend.
+
+`runtime.render.RenderSceneExtractor` adapts engine state into render-owned
+scene data:
+
+- `Camera` -> `RenderCamera`
+- loaded world chunks -> `RenderChunk`
+- entities with `PhysicsComponents.TRANSFORM` -> placeholder `RenderObject`
+
 ## Testing
 
 Run focused tests while working:
 
 ```powershell
 .\gradlew.bat :server:test
+.\gradlew.bat :render:test
+.\gradlew.bat :runtime:test
 .\gradlew.bat :game:test
 .\gradlew.bat :content:test
 ```
@@ -222,6 +253,8 @@ Likely next additions:
 
 - Content-pack discovery in `content`.
 - Safe block-facing server script APIs.
+- Runtime render loop composition using `RenderSceneExtractor`.
+- Real render backend bootstrap behind the `RenderBackend` interface.
 - Validation that category entries reference existing blocks/items.
 - Tag support for grouping content beyond creative UI categories.
 - Data-driven recipes and localization keys.
