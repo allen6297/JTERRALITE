@@ -3,6 +3,8 @@ package com.terralite.game.content;
 import com.terralite.content.loading.ContentPackDiscovery;
 import com.terralite.content.loading.PackLoadOrderResolver;
 import com.terralite.content.pack.ContentPack;
+import com.terralite.content.scripting.ScriptExecutionReport;
+import com.terralite.content.scripting.StartupScriptRunner;
 import com.terralite.core.registry.GameData;
 import com.terralite.core.registry.RegistryManager;
 import com.terralite.game.registry.TerraliteRegistries;
@@ -16,6 +18,7 @@ public final class GameContentLoader {
     private final ContentPackDiscovery discovery;
     private final PackLoadOrderResolver orderResolver;
     private final GameContentPackApplier applier;
+    private final StartupScriptRunner startupScriptRunner;
     private final GameContentValidator validator;
 
     public GameContentLoader() {
@@ -23,6 +26,7 @@ public final class GameContentLoader {
                 new ContentPackDiscovery(),
                 new PackLoadOrderResolver(),
                 new GameContentPackApplier(),
+                new StartupScriptRunner(),
                 new GameContentValidator()
         );
     }
@@ -31,11 +35,13 @@ public final class GameContentLoader {
             ContentPackDiscovery discovery,
             PackLoadOrderResolver orderResolver,
             GameContentPackApplier applier,
+            StartupScriptRunner startupScriptRunner,
             GameContentValidator validator
     ) {
         this.discovery = Objects.requireNonNull(discovery, "discovery");
         this.orderResolver = Objects.requireNonNull(orderResolver, "orderResolver");
         this.applier = Objects.requireNonNull(applier, "applier");
+        this.startupScriptRunner = Objects.requireNonNull(startupScriptRunner, "startupScriptRunner");
         this.validator = Objects.requireNonNull(validator, "validator");
     }
 
@@ -52,10 +58,11 @@ public final class GameContentLoader {
         createGameRegistries(registries);
 
         GameContentLoadResult loadResult = applier.apply(orderedPacks, registries);
+        ScriptExecutionReport startupScripts = startupScriptRunner.run(orderedPacks);
         GameData gameData = registries.freeze();
         validator.validate(gameData).requireValid();
 
-        return new GameContentLoadReport(orderedPacks, loadResult, gameData);
+        return new GameContentLoadReport(orderedPacks, loadResult, startupScripts, gameData);
     }
 
     private static void createGameRegistries(RegistryManager registries) {

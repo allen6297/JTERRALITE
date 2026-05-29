@@ -136,6 +136,18 @@ Script scope rules from the design doc:
 those three scope directories. Execution and API exposure are separate future
 steps.
 
+Startup script execution now runs through `content.scripting.StartupScriptRunner`
+as part of `GameContentLoader`, after JSON content is applied and before
+registries freeze. The current script API is intentionally minimal:
+
+```js
+api.info("message");
+```
+
+This records script diagnostics in `GameContentLoadReport.startupScripts()`.
+Future work should expose safe registry builders for startup scripts instead of
+letting scripts touch internal registry state directly.
+
 ## Testing
 
 Run focused tests while working:

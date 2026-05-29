@@ -35,6 +35,8 @@ class GameContentLoaderTest {
                 ResourceId.id("terralite:addon")
         ), report.packs().stream().map(pack -> pack.manifest().id()).toList());
         assertEquals(3, report.loadResult().loadedFiles());
+        assertEquals(1, report.startupScripts().executedScripts());
+        assertEquals("addon startup", report.startupScripts().messages().get(0).message());
         assertEquals(1.5f, stone.properties().hardness());
         assertEquals(List.of(ResourceId.id("terralite:building_blocks")), pickaxe.properties().categories());
     }
@@ -70,6 +72,7 @@ class GameContentLoaderTest {
     private ContentPack writeAddonPack() throws Exception {
         Path packRoot = tempDir.resolve("addon");
         Files.createDirectories(packRoot.resolve("data/terralite/items"));
+        Files.createDirectories(packRoot.resolve("scripts/startup"));
         Files.writeString(packRoot.resolve("pack.json"), """
             {
               "id": "terralite:addon",
@@ -84,6 +87,7 @@ class GameContentLoaderTest {
               "categories": ["terralite:building_blocks"]
             }
             """);
+        Files.writeString(packRoot.resolve("scripts/startup/main.js"), "api.info('addon startup');");
         return new ContentPackLoader().load(packRoot);
     }
 }
