@@ -5,6 +5,7 @@ import com.terralite.core.registry.GameData;
 import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.RegistryManager;
 import com.terralite.core.registry.ResourceId;
+import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
@@ -20,6 +21,7 @@ class GameContentValidatorTest {
         RegistryManager registries = new RegistryManager();
         registries.create(TerraliteRegistries.BLOCKS);
         registries.create(TerraliteRegistries.ITEMS);
+        registries.create(TerraliteRegistries.BIOMES);
         registries.create(TerraliteRegistries.TAGS);
         registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
         return registries;
@@ -100,6 +102,46 @@ class GameContentValidatorTest {
                         .description("Seed items")
                         .member("terralite:wheat_seeds")
                         .build());
+
+        assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
+    }
+
+    @Test
+    void passesWhenBiomeSurfaceBlocksExist() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:grass"), Block.builder().build());
+        registries.requireMutable(TerraliteRegistries.BIOMES)
+                .register(ResourceId.id("terralite:plains"), Biome.builder()
+                        .name("Plains")
+                        .surfaceTop("terralite:grass")
+                        .build());
+
+        assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
+    }
+
+    @Test
+    void reportsMissingBiomeSurfaceBlock() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BIOMES)
+                .register(ResourceId.id("terralite:plains"), Biome.builder()
+                        .name("Plains")
+                        .surfaceTop("terralite:grass")
+                        .surfaceMiddle("terralite:dirt")
+                        .surfaceBase("terralite:stone")
+                        .build());
+
+        ContentValidationResult result = new GameContentValidator().validate(registries.freeze());
+
+        assertEquals(3, result.issues().size());
+        assertTrue(result.issues().stream().allMatch(i -> i.code().equals("biome.surface.missing")));
+    }
+
+    @Test
+    void ignoresBiomeSurfaceBlocksWhenNull() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BIOMES)
+                .register(ResourceId.id("terralite:void"), Biome.builder().name("Void").build());
 
         assertTrue(new GameContentValidator().validate(registries.freeze()).isValid());
     }

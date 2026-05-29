@@ -6,6 +6,7 @@ import com.terralite.core.registry.FrozenRegistry;
 import com.terralite.core.registry.GameData;
 import com.terralite.core.registry.RegistryKey;
 import com.terralite.core.registry.ResourceId;
+import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
@@ -23,11 +24,13 @@ public final class GameContentValidator {
         List<ContentValidationIssue> issues = new ArrayList<>();
         FrozenRegistry<Block> blocks = registryOrNull(gameData, TerraliteRegistries.BLOCKS, issues);
         FrozenRegistry<Item> items = registryOrNull(gameData, TerraliteRegistries.ITEMS, issues);
+        FrozenRegistry<Biome> biomes = registryOrNull(gameData, TerraliteRegistries.BIOMES, issues);
         FrozenRegistry<Tag> tags = registryOrNull(gameData, TerraliteRegistries.TAGS, issues);
         FrozenRegistry<CreativeCategory> categories =
                 registryOrNull(gameData, TerraliteRegistries.CREATIVE_CATEGORIES, issues);
 
         validateItemPlacesBlock(items, blocks, issues);
+        validateBiomeSurface(biomes, blocks, issues);
         validateTagMembers(tags, blocks, items, issues);
 
         if (categories != null) {
@@ -37,6 +40,41 @@ public final class GameContentValidator {
         }
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void validateBiomeSurface(
+            FrozenRegistry<Biome> biomes,
+            FrozenRegistry<Block> blocks,
+            List<ContentValidationIssue> issues
+    ) {
+        if (biomes == null) {
+            return;
+        }
+
+        for (ResourceId biomeId : biomes.ids()) {
+            Biome biome = biomes.require(biomeId);
+            checkBiomeSurfaceBlock(biomeId, "surfaceTop", biome.properties().surfaceTop(), blocks, issues);
+            checkBiomeSurfaceBlock(biomeId, "surfaceMiddle", biome.properties().surfaceMiddle(), blocks, issues);
+            checkBiomeSurfaceBlock(biomeId, "surfaceBase", biome.properties().surfaceBase(), blocks, issues);
+        }
+    }
+
+    private static void checkBiomeSurfaceBlock(
+            ResourceId biomeId,
+            String field,
+            String blockId,
+            FrozenRegistry<Block> blocks,
+            List<ContentValidationIssue> issues
+    ) {
+        if (blockId == null || blockId.isBlank()) {
+            return;
+        }
+        if (!contains(blocks, ResourceId.id(blockId))) {
+            issues.add(ContentValidationIssue.of(
+                    "biome.surface.missing",
+                    "Biome " + biomeId + " " + field + " references missing block " + blockId
+            ));
+        }
     }
 
     private static void validateTagMembers(

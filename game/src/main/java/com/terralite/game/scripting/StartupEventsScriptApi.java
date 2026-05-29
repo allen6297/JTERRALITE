@@ -2,6 +2,7 @@ package com.terralite.game.scripting;
 
 import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.ResourceId;
+import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
 import com.terralite.game.item.Item;
 import com.terralite.game.tag.Tag;
@@ -16,15 +17,18 @@ import java.util.Objects;
 public final class StartupEventsScriptApi {
     private final MutableRegistry<Block> blockRegistry;
     private final MutableRegistry<Item> itemRegistry;
+    private final MutableRegistry<Biome> biomeRegistry;
     private final MutableRegistry<Tag> tagRegistry;
 
     public StartupEventsScriptApi(
             MutableRegistry<Block> blockRegistry,
             MutableRegistry<Item> itemRegistry,
+            MutableRegistry<Biome> biomeRegistry,
             MutableRegistry<Tag> tagRegistry
     ) {
         this.blockRegistry = Objects.requireNonNull(blockRegistry, "blockRegistry");
         this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry");
+        this.biomeRegistry = Objects.requireNonNull(biomeRegistry, "biomeRegistry");
         this.tagRegistry = Objects.requireNonNull(tagRegistry, "tagRegistry");
     }
 
@@ -48,6 +52,13 @@ public final class StartupEventsScriptApi {
                 fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
                 for (ItemScriptBuilder builder : event.pending) {
                     itemRegistry.register(builder.id(), builder.build());
+                }
+            }
+            case "biome" -> {
+                BiomeRegistryEvent event = new BiomeRegistryEvent();
+                fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
+                for (BiomeScriptBuilder builder : event.pending) {
+                    biomeRegistry.register(builder.id(), builder.build());
                 }
             }
             case "tag" -> {
@@ -78,6 +89,17 @@ public final class StartupEventsScriptApi {
         public ItemScriptBuilder create(String id) {
             Objects.requireNonNull(id, "id");
             ItemScriptBuilder builder = new ItemScriptBuilder(ResourceId.id(id));
+            pending.add(builder);
+            return builder;
+        }
+    }
+
+    public static final class BiomeRegistryEvent {
+        private final List<BiomeScriptBuilder> pending = new ArrayList<>();
+
+        public BiomeScriptBuilder create(String id) {
+            Objects.requireNonNull(id, "id");
+            BiomeScriptBuilder builder = new BiomeScriptBuilder(ResourceId.id(id));
             pending.add(builder);
             return builder;
         }

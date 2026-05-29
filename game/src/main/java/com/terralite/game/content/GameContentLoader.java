@@ -9,6 +9,7 @@ import com.terralite.content.scripting.StartupScriptRunner;
 import com.terralite.core.registry.GameData;
 import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.RegistryManager;
+import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
@@ -63,11 +64,12 @@ public final class GameContentLoader {
         RegistryManager registries = new RegistryManager();
         MutableRegistry<Block> blockRegistry = registries.create(TerraliteRegistries.BLOCKS);
         MutableRegistry<Item> itemRegistry = registries.create(TerraliteRegistries.ITEMS);
+        MutableRegistry<Biome> biomeRegistry = registries.create(TerraliteRegistries.BIOMES);
         MutableRegistry<Tag> tagRegistry = registries.create(TerraliteRegistries.TAGS);
         registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
 
         GameContentLoadResult loadResult = applier.apply(orderedPacks, registries);
-        List<StartupScriptGlobal> globals = GameStartupScriptGlobals.create(blockRegistry, itemRegistry, tagRegistry);
+        List<StartupScriptGlobal> globals = GameStartupScriptGlobals.create(blockRegistry, itemRegistry, biomeRegistry, tagRegistry);
         ScriptExecutionReport startupScripts = startupScriptRunner.run(orderedPacks, globals);
         GameData gameData = registries.freeze();
         validator.validate(gameData).requireValid();

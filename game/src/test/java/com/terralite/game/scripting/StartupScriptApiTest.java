@@ -126,6 +126,45 @@ class StartupScriptApiTest {
     }
 
     @Test
+    void startupScriptCanRegisterBiome() throws Exception {
+        ContentPack pack = writePack("base", """
+                StartupEvents.registry('block', function(event) {
+                  event.create('base:grass').displayName('Grass');
+                  event.create('base:dirt').displayName('Dirt');
+                  event.create('base:stone').displayName('Stone');
+                });
+                StartupEvents.registry('biome', function(event) {
+                  event.create('base:temperate_forest')
+                    .name('Temperate Forest')
+                    .priority(10)
+                    .rarity(1.0)
+                    .temperature(0.30, 0.70)
+                    .humidity(0.40, 0.80)
+                    .terrain(48, 14)
+                    .surfaceTop('base:grass')
+                    .surfaceMiddle('base:dirt')
+                    .surfaceMiddleDepth(3)
+                    .surfaceBase('base:stone');
+                });
+                """);
+
+        GameContentLoadReport report = new GameContentLoader().load(List.of(pack));
+
+        var biome = report.gameData().get(ResourceKey.of(TerraliteRegistries.BIOMES, "base:temperate_forest"));
+        assertEquals("Temperate Forest", biome.properties().name());
+        assertEquals(10, biome.properties().priority());
+        assertEquals(1.0, biome.properties().rarity());
+        assertEquals(0.30, biome.properties().temperatureMin());
+        assertEquals(0.70, biome.properties().temperatureMax());
+        assertEquals(48, biome.properties().baseHeight());
+        assertEquals(14, biome.properties().heightVariation());
+        assertEquals("base:grass", biome.properties().surfaceTop());
+        assertEquals("base:dirt", biome.properties().surfaceMiddle());
+        assertEquals(3, biome.properties().surfaceMiddleDepth());
+        assertEquals("base:stone", biome.properties().surfaceBase());
+    }
+
+    @Test
     void blockScriptBuilderStubMethodsAreChainable() throws Exception {
         ContentPack pack = writePack("base", """
                 StartupEvents.registry('block', function(event) {

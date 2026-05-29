@@ -2,6 +2,7 @@ package com.terralite.game.scripting;
 
 import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.ResourceId;
+import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
 import com.terralite.game.block.BlockProperties;
 import com.terralite.game.item.Item;
@@ -14,10 +15,16 @@ import java.util.Objects;
 public final class RegistryScriptApi {
     private final MutableRegistry<Block> blockRegistry;
     private final MutableRegistry<Item> itemRegistry;
+    private final MutableRegistry<Biome> biomeRegistry;
 
-    public RegistryScriptApi(MutableRegistry<Block> blockRegistry, MutableRegistry<Item> itemRegistry) {
+    public RegistryScriptApi(
+            MutableRegistry<Block> blockRegistry,
+            MutableRegistry<Item> itemRegistry,
+            MutableRegistry<Biome> biomeRegistry
+    ) {
         this.blockRegistry = Objects.requireNonNull(blockRegistry, "blockRegistry");
         this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry");
+        this.biomeRegistry = Objects.requireNonNull(biomeRegistry, "biomeRegistry");
     }
 
     public Block getBlock(String id) {
@@ -26,6 +33,10 @@ public final class RegistryScriptApi {
 
     public Item getItem(String id) {
         return itemRegistry.require(ResourceId.id(id));
+    }
+
+    public Biome getBiome(String id) {
+        return biomeRegistry.require(ResourceId.id(id));
     }
 
     public void modifyBlock(String id, Function fn) {

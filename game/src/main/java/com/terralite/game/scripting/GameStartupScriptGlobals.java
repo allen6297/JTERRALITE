@@ -2,6 +2,7 @@ package com.terralite.game.scripting;
 
 import com.terralite.content.scripting.StartupScriptGlobal;
 import com.terralite.core.registry.MutableRegistry;
+import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
 import com.terralite.game.item.Item;
 import com.terralite.game.tag.Tag;
@@ -16,14 +17,16 @@ public final class GameStartupScriptGlobals {
     public static List<StartupScriptGlobal> create(
             MutableRegistry<Block> blockRegistry,
             MutableRegistry<Item> itemRegistry,
+            MutableRegistry<Biome> biomeRegistry,
             MutableRegistry<Tag> tagRegistry
     ) {
         Objects.requireNonNull(blockRegistry, "blockRegistry");
         Objects.requireNonNull(itemRegistry, "itemRegistry");
+        Objects.requireNonNull(biomeRegistry, "biomeRegistry");
         Objects.requireNonNull(tagRegistry, "tagRegistry");
 
-        StartupEventsScriptApi startupEvents = new StartupEventsScriptApi(blockRegistry, itemRegistry, tagRegistry);
-        RegistryScriptApi registry = new RegistryScriptApi(blockRegistry, itemRegistry);
+        StartupEventsScriptApi startupEvents = new StartupEventsScriptApi(blockRegistry, itemRegistry, biomeRegistry, tagRegistry);
+        RegistryScriptApi registry = new RegistryScriptApi(blockRegistry, itemRegistry, biomeRegistry);
 
         return List.of(
                 new StartupScriptGlobal("StartupEvents", startupEvents),

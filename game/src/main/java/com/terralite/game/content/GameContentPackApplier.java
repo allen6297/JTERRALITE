@@ -7,6 +7,8 @@ import com.terralite.content.pack.ContentPack;
 import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.RegistryKey;
 import com.terralite.core.registry.RegistryManager;
+import com.terralite.game.biome.Biome;
+import com.terralite.game.biome.json.BiomeJsonLoader;
 import com.terralite.game.block.Block;
 import com.terralite.game.block.json.BlockJsonLoader;
 import com.terralite.game.category.CreativeCategory;
@@ -75,6 +77,7 @@ public final class GameContentPackApplier {
         Map<String, GameContentTypeLoader> loaders = new LinkedHashMap<>();
         BlockJsonLoader blockLoader = new BlockJsonLoader();
         ItemJsonLoader itemLoader = new ItemJsonLoader();
+        BiomeJsonLoader biomeLoader = new BiomeJsonLoader();
         CreativeCategoryJsonLoader categoryLoader = new CreativeCategoryJsonLoader();
         TagJsonLoader tagLoader = new TagJsonLoader();
 
@@ -95,6 +98,12 @@ public final class GameContentPackApplier {
                     requireOrCreate(registries, TerraliteRegistries.CREATIVE_CATEGORIES);
             try (InputStream input = Files.newInputStream(file.path())) {
                 categoryLoader.register(file.id(), input, categories);
+            }
+        });
+        loaders.put("biomes", (file, registries) -> {
+            MutableRegistry<Biome> biomes = requireOrCreate(registries, TerraliteRegistries.BIOMES);
+            try (InputStream input = Files.newInputStream(file.path())) {
+                biomeLoader.register(file.id(), input, biomes);
             }
         });
         loaders.put("tags", (file, registries) -> {
