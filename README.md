@@ -55,12 +55,43 @@ Category membership is stored on block and item properties as
 `List<ResourceId> categories`. Category definitions can also define ordered
 `entries` for UI-like creative tab ordering.
 
+Content packs live as directories with a `pack.json` manifest at the root.
+Minecraft-like JSON discovery currently scans:
+
+- `data/<namespace>/<type>/<path>.json`
+- `assets/<namespace>/<type>/<path>.json`
+
+For those paths, `<namespace>:<path>` becomes the resource id and `<type>`
+becomes the content file type. For example,
+`data/terralite/blocks/natural/stone.json` maps to type `blocks` and id
+`terralite:natural/stone`.
+
+Core pack/content classes:
+
+- `content.manifest.PackManifest` and `PackManifestLoader`
+- `content.pack.ContentPack` and `ContentPackLoader`
+- `content.loading.ContentPackDiscovery`
+- `content.json.JsonContentScanner`
+
+Game-specific pack application lives in `game.content.GameContentPackApplier`.
+It scans content packs and routes data files by type:
+
+- `blocks` -> `BlockJsonLoader` -> `terralite:blocks`
+- `items` -> `ItemJsonLoader` -> `terralite:items`
+- `creative_categories` -> `CreativeCategoryJsonLoader` ->
+  `terralite:creative_categories`
+
+The generic `content` module should stay independent from `game`; routing that
+knows about concrete game registries belongs in the `game` module or a higher
+startup/runtime layer.
+
 ## Testing
 
 Run focused tests while working:
 
 ```powershell
 .\gradlew.bat :game:test
+.\gradlew.bat :content:test
 ```
 
 Run the full suite before finishing broad changes:
