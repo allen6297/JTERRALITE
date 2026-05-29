@@ -1,5 +1,10 @@
 package com.terralite.game.block;
 
+import com.terralite.core.registry.ResourceId;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 public record Block(BlockProperties properties) {
@@ -19,6 +24,7 @@ public record Block(BlockProperties properties) {
         private boolean requiresTool;
         private String material = "stone";
         private String soundType = "stone";
+        private final List<ResourceId> categories = new ArrayList<>();
 
         private Builder() {}
 
@@ -57,6 +63,21 @@ public record Block(BlockProperties properties) {
             return this;
         }
 
+        public Builder category(ResourceId category) {
+            categories.add(Objects.requireNonNull(category, "category"));
+            return this;
+        }
+
+        public Builder category(String category) {
+            return category(ResourceId.id(category));
+        }
+
+        public Builder categories(Collection<ResourceId> categories) {
+            this.categories.clear();
+            this.categories.addAll(Objects.requireNonNull(categories, "categories"));
+            return this;
+        }
+
         public Block build() {
             return new Block(new BlockProperties(
                 hardness,
@@ -65,7 +86,8 @@ public record Block(BlockProperties properties) {
                 transparent,
                 requiresTool,
                 material,
-                soundType
+                soundType,
+                List.copyOf(categories)
             ));
         }
     }

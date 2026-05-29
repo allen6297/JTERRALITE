@@ -1,37 +1,38 @@
-package com.terralite.game.item.json;
+package com.terralite.game.category.json;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.ResourceId;
-import com.terralite.game.item.Item;
+import com.terralite.game.category.CreativeCategory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
 
-public final class ItemJsonLoader {
+public final class CreativeCategoryJsonLoader {
     private final ObjectMapper mapper;
 
-    public ItemJsonLoader() {
+    public CreativeCategoryJsonLoader() {
         this(defaultMapper());
     }
 
-    public ItemJsonLoader(ObjectMapper mapper) {
+    public CreativeCategoryJsonLoader(ObjectMapper mapper) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
-    public Item load(InputStream input) throws IOException {
+    public CreativeCategory load(InputStream input) throws IOException {
         Objects.requireNonNull(input, "input");
-        return mapper.readValue(input, ItemDefinition.class).toItem();
+        return mapper.readValue(input, CreativeCategoryDefinition.class).toCategory();
     }
 
-    public Item register(ResourceId id, InputStream input, MutableRegistry<Item> items) throws IOException {
+    public CreativeCategory register(ResourceId id, InputStream input, MutableRegistry<CreativeCategory> categories)
+            throws IOException {
         Objects.requireNonNull(id, "id");
-        Objects.requireNonNull(items, "items");
+        Objects.requireNonNull(categories, "categories");
 
-        Item item = load(input);
-        return items.register(id, item);
+        CreativeCategory category = load(input);
+        return categories.register(id, category);
     }
 
     private static ObjectMapper defaultMapper() {

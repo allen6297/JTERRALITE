@@ -1,5 +1,8 @@
 package com.terralite.game.block;
 
+import com.terralite.core.registry.ResourceId;
+
+import java.util.List;
 import java.util.Objects;
 
 public record BlockProperties(
@@ -9,7 +12,8 @@ public record BlockProperties(
     boolean transparent,
     boolean requiresTool,
     String material,
-    String soundType
+    String soundType,
+    List<ResourceId> categories
 ) {
     public BlockProperties {
         if (hardness < 0.0f) {
@@ -22,5 +26,6 @@ public record BlockProperties(
 
         Objects.requireNonNull(material, "material");
         Objects.requireNonNull(soundType, "soundType");
+        categories = List.copyOf(Objects.requireNonNull(categories, "categories"));
     }
 }

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,7 +29,8 @@ class BlockJsonLoaderTest {
               "transparent": false,
               "requires_tool": true,
               "material": "stone",
-              "sound_type": "stone"
+              "sound_type": "stone",
+              "categories": ["terralite:building_blocks"]
             }
             """;
 
@@ -45,6 +47,7 @@ class BlockJsonLoaderTest {
         assertTrue(stone.properties().requiresTool());
         assertEquals("stone", stone.properties().material());
         assertEquals("stone", stone.properties().soundType());
+        assertEquals(List.of(ResourceId.id("terralite:building_blocks")), stone.properties().categories());
     }
 
     private static ByteArrayInputStream stream(String json) {
