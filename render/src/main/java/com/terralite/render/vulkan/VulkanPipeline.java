@@ -176,6 +176,14 @@ public final class VulkanPipeline {
                 .logicOpEnable(false)
                 .pAttachments(colorBlendAttachment);
 
+        VkPipelineDepthStencilStateCreateInfo depthStencil = VkPipelineDepthStencilStateCreateInfo.calloc(stack)
+                .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
+                .depthTestEnable(true)
+                .depthWriteEnable(true)
+                .depthCompareOp(VK_COMPARE_OP_LESS)
+                .depthBoundsTestEnable(false)
+                .stencilTestEnable(false);
+
         // Dynamic states: viewport and scissor set each frame
         VkPipelineDynamicStateCreateInfo dynamicState = VkPipelineDynamicStateCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)
@@ -190,6 +198,7 @@ public final class VulkanPipeline {
                 .pRasterizationState(rasterizer)
                 .pMultisampleState(multisampling)
                 .pColorBlendState(colorBlend)
+                .pDepthStencilState(depthStencil)
                 .pDynamicState(dynamicState)
                 .layout(pipelineLayout)
                 .renderPass(swapchain.renderPass)

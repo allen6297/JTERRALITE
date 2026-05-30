@@ -48,7 +48,9 @@ public final class RenderSceneExtractor {
                 transform.z(),
                 camera.fovDegrees(),
                 camera.nearPlane(),
-                camera.farPlane()
+                camera.farPlane(),
+                camera.yaw(),
+                camera.pitch()
         );
     }
 

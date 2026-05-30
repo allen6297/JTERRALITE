@@ -163,12 +163,13 @@ public final class VulkanRenderBackend implements RenderBackend {
                 .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
         VulkanUtils.check(vkBeginCommandBuffer(cmd, beginInfo), "Failed to begin command buffer");
 
-        VkClearValue.Buffer clearValues = VkClearValue.calloc(1, stack);
+        VkClearValue.Buffer clearValues = VkClearValue.calloc(2, stack);
         clearValues.get(0).color()
                 .float32(0, frame.clearColor().red())
                 .float32(1, frame.clearColor().green())
                 .float32(2, frame.clearColor().blue())
                 .float32(3, frame.clearColor().alpha());
+        clearValues.get(1).depthStencil().depth(1.0f).stencil(0);
 
         VkRenderPassBeginInfo renderPassInfo = VkRenderPassBeginInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
