@@ -66,9 +66,23 @@ public final class VulkanRenderBackend implements RenderBackend {
         window.show();
     }
 
+    /** Returns true if the underlying window has been asked to close. */
+    public boolean shouldClose() {
+        return window.shouldClose();
+    }
+
     @Override
     public RenderStats render(RenderFrame frame) {
         Objects.requireNonNull(frame, "frame");
+
+        // Poll events first so shouldClose() stays up to date
+        window.pollEvents();
+
+        // Skip rendering while minimized (framebuffer is 0×0 on some platforms)
+        Viewport currentVp = window.viewport();
+        if (currentVp.width() <= 1 && currentVp.height() <= 1) {
+            return new RenderStats(frameIndex, currentVp);
+        }
 
         if (needsSwapchainRecreation) {
             recreateSwapchain();
@@ -127,7 +141,6 @@ public final class VulkanRenderBackend implements RenderBackend {
             }
 
             currentFrame = (currentFrame + 1) % VulkanCommands.FRAMES_IN_FLIGHT;
-            window.pollEvents();
             return new RenderStats(++frameIndex, new Viewport(swapchain.width, swapchain.height));
         }
     }

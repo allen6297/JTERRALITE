@@ -37,6 +37,11 @@ public record RenderScene(RenderCamera camera, List<RenderChunk> chunks, List<Re
             return this;
         }
 
+        public Builder addChunks(java.util.List<RenderChunk> chunks) {
+            chunks.forEach(this::addChunk);
+            return this;
+        }
+
         public Builder addObject(RenderObject object) {
             objects.add(Objects.requireNonNull(object, "object"));
             return this;
