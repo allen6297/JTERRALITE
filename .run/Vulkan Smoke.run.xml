@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="OpenGL Smoke" type="Application" factoryName="Application">
-    <option name="MAIN_CLASS_NAME" value="com.terralite.tools.render.OpenGlSmoke" />
+  <configuration default="false" name="Vulkan Smoke" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.terralite.tools.render.VulkanSmoke" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
     <module name="JTERRALITE.tools.main" />
     <method v="2">

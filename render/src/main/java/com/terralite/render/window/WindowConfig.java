@@ -26,4 +26,8 @@ public record WindowConfig(String title, int width, int height, boolean visible,
     public static WindowConfig openGl(String title, int width, int height) {
         return new WindowConfig(title, width, height, true, true);
     }
+
+    public static WindowConfig vulkan(String title, int width, int height) {
+        return new WindowConfig(title, width, height, true, false);
+    }
 }

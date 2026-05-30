@@ -6,9 +6,9 @@ dependencies {
     implementation(libs.imgui.java.app)
 }
 
-tasks.register<JavaExec>("runOpenGlSmoke") {
+tasks.register<JavaExec>("runVulkanSmoke") {
     group = "verification"
-    description = "Opens a GLFW/OpenGL window and clears it with a changing color for manual render verification."
+    description = "Opens a GLFW/Vulkan window with a 3x3 chunk marker grid for manual render verification."
     classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("com.terralite.tools.render.OpenGlSmoke")
+    mainClass.set("com.terralite.tools.render.VulkanSmoke")
 }
