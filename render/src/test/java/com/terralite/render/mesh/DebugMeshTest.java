@@ -22,6 +22,6 @@ class DebugMeshTest {
 
     @Test
     void squareRejectsInvalidSize() {
-        assertThrows(IllegalArgumentException.class, () -> DebugMesh.square(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f));
+        assertThrows(IllegalArgumentException.class, () -> DebugMesh.square(0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f));
     }
 }

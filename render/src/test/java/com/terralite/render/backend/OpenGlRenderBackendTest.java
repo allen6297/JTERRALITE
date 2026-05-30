@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class OpenGlRenderBackendTest {
     @Test
-    void backendClearsFrameAndSwapsBuffers() {
+    void backendClearsFrameAndDrawsChunkMarkers() {
         RecordingWindow window = new RecordingWindow(WindowConfig.openGl("TERRALITE", 640, 480));
         RecordingOpenGlCommands commands = new RecordingOpenGlCommands();
         Renderer renderer = new Renderer(new OpenGlRenderBackend(window, commands));
@@ -41,17 +41,14 @@ class OpenGlRenderBackendTest {
         assertEquals(List.of("create", "context", "show", "poll", "viewport", "swap", "destroy"), window.events());
         assertEquals(List.of(
                 "capabilities",
-                "createMesh:3",
                 "viewport:640x480",
                 "clear:0.25,0.5,0.75,1.0",
+                "createMesh:6",
                 "drawMesh:1",
                 "createMesh:6",
                 "drawMesh:2",
-                "createMesh:6",
-                "drawMesh:3",
-                "destroyMesh:2",
-                "destroyMesh:3",
-                "destroyMesh:1"
+                "destroyMesh:1",
+                "destroyMesh:2"
         ), commands.events());
         assertEquals(new Viewport(640, 480), stats.viewport());
         assertEquals(1, stats.frameIndex());
@@ -77,21 +74,17 @@ class OpenGlRenderBackendTest {
 
         assertEquals(List.of(
                 "capabilities",
-                "createMesh:3",
                 "viewport:640x480",
                 "clear:0.0,0.0,0.0,1.0",
+                "createMesh:6",
                 "drawMesh:1",
                 "createMesh:6",
                 "drawMesh:2",
-                "createMesh:6",
-                "drawMesh:3",
                 "viewport:640x480",
                 "clear:0.0,0.0,0.0,1.0",
-                "drawMesh:1",
-                "destroyMesh:2",
-                "drawMesh:3",
-                "destroyMesh:3",
-                "destroyMesh:1"
+                "destroyMesh:1",
+                "drawMesh:2",
+                "destroyMesh:2"
         ), commands.events());
     }
 
@@ -122,7 +115,7 @@ class OpenGlRenderBackendTest {
         }
 
         @Override
-        public void drawMesh(int meshHandle) {
+        public void drawMesh(int meshHandle, float[] mvp) {
             events.add("drawMesh:" + meshHandle);
         }
 

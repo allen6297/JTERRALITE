@@ -5,24 +5,22 @@ import com.terralite.render.RenderChunk;
 import com.terralite.render.RenderFrame;
 import com.terralite.render.RenderStats;
 import com.terralite.render.Viewport;
+import com.terralite.render.math.CameraMatrices;
 import com.terralite.render.mesh.ChunkDebugMeshFactory;
 import com.terralite.render.opengl.LwjglOpenGlCommands;
 import com.terralite.render.opengl.OpenGlCommands;
-import com.terralite.render.mesh.DebugMesh;
 import com.terralite.render.window.RenderWindow;
 
-import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.Set;
 
 public final class OpenGlRenderBackend implements RenderBackend {
     private final RenderWindow window;
     private final OpenGlCommands commands;
-    private final List<Integer> debugMeshHandles = new ArrayList<>();
     private final Map<RenderChunk, Integer> chunkMarkerMeshes = new LinkedHashMap<>();
     private long frameIndex;
 
@@ -40,7 +38,6 @@ public final class OpenGlRenderBackend implements RenderBackend {
         window.create();
         window.makeContextCurrent();
         commands.createCapabilities();
-        debugMeshHandles.add(commands.createMesh(DebugMesh.triangle()));
     }
 
     @Override
@@ -55,10 +52,10 @@ public final class OpenGlRenderBackend implements RenderBackend {
         Viewport viewport = window.viewport();
         commands.viewport(viewport);
         commands.clear(frame.clearColor());
-        for (int meshHandle : debugMeshHandles) {
-            commands.drawMesh(meshHandle);
-        }
-        drawChunkMarkers(frame);
+
+        float[] mvp = CameraMatrices.viewProjection(frame.scene().camera(), viewport);
+        drawChunkMarkers(frame, mvp);
+
         window.swapBuffers();
         return new RenderStats(++frameIndex, viewport);
     }
@@ -66,14 +63,10 @@ public final class OpenGlRenderBackend implements RenderBackend {
     @Override
     public void stop() {
         destroyChunkMarkers();
-        for (int meshHandle : debugMeshHandles) {
-            commands.destroyMesh(meshHandle);
-        }
-        debugMeshHandles.clear();
         window.destroy();
     }
 
-    private void drawChunkMarkers(RenderFrame frame) {
+    private void drawChunkMarkers(RenderFrame frame, float[] mvp) {
         Set<RenderChunk> submittedChunks = new HashSet<>(frame.scene().chunks());
         destroyRemovedChunkMarkers(submittedChunks);
 
@@ -82,7 +75,7 @@ public final class OpenGlRenderBackend implements RenderBackend {
                     chunk,
                     missingChunk -> commands.createMesh(ChunkDebugMeshFactory.create(missingChunk))
             );
-            commands.drawMesh(meshHandle);
+            commands.drawMesh(meshHandle, mvp);
         }
     }
 

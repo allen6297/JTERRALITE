@@ -5,8 +5,8 @@ import com.terralite.render.Viewport;
 import com.terralite.render.mesh.DebugMesh;
 import com.terralite.render.mesh.DebugVertex;
 import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
@@ -17,15 +17,17 @@ import java.util.Objects;
 public final class LwjglOpenGlCommands implements OpenGlCommands {
     private static final String VERTEX_SHADER = """
             #version 330 core
-            layout (location = 0) in vec2 position;
+            layout (location = 0) in vec3 position;
             layout (location = 1) in vec3 color;
+            uniform mat4 mvp;
             out vec3 vertexColor;
 
             void main() {
                 vertexColor = color;
-                gl_Position = vec4(position, 0.0, 1.0);
+                gl_Position = mvp * vec4(position, 1.0);
             }
             """;
+
     private static final String FRAGMENT_SHADER = """
             #version 330 core
             in vec3 vertexColor;
@@ -36,7 +38,11 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
             }
             """;
 
+    /** Floats per vertex: x, y, z, r, g, b */
+    private static final int FLOATS_PER_VERTEX = 6;
+
     private int shaderProgram;
+    private int mvpLocation = -1;
     private int nextMeshHandle = 1;
     private final Map<Integer, MeshResources> meshes = new HashMap<>();
 
@@ -50,6 +56,7 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
         Objects.requireNonNull(mesh, "mesh");
         if (shaderProgram == 0) {
             shaderProgram = createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
+            mvpLocation = GL20.glGetUniformLocation(shaderProgram, "mvp");
         }
 
         int vao = GL30.glGenVertexArrays();
@@ -58,10 +65,12 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, toFloatArray(mesh), GL15.GL_STATIC_DRAW);
 
-        int stride = 5 * Float.BYTES;
-        GL20.glVertexAttribPointer(0, 2, GL11.GL_FLOAT, false, stride, 0L);
+        int stride = FLOATS_PER_VERTEX * Float.BYTES;
+        // location 0: position (vec3)
+        GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, stride, 0L);
         GL20.glEnableVertexAttribArray(0);
-        GL20.glVertexAttribPointer(1, 3, GL11.GL_FLOAT, false, stride, 2L * Float.BYTES);
+        // location 1: color (vec3)
+        GL20.glVertexAttribPointer(1, 3, GL11.GL_FLOAT, false, stride, 3L * Float.BYTES);
         GL20.glEnableVertexAttribArray(1);
 
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
@@ -84,9 +93,14 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
     }
 
     @Override
-    public void drawMesh(int meshHandle) {
+    public void drawMesh(int meshHandle, float[] mvp) {
+        Objects.requireNonNull(mvp, "mvp");
+        if (mvp.length != 16) {
+            throw new IllegalArgumentException("MVP matrix must be float[16], got float[" + mvp.length + "]");
+        }
         MeshResources mesh = requireMesh(meshHandle);
         GL20.glUseProgram(shaderProgram);
+        GL20.glUniformMatrix4fv(mvpLocation, false, mvp);
         GL30.glBindVertexArray(mesh.vao());
         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, mesh.vertexCount());
         GL30.glBindVertexArray(0);
@@ -105,6 +119,7 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
         if (meshes.isEmpty() && shaderProgram != 0) {
             GL20.glDeleteProgram(shaderProgram);
             shaderProgram = 0;
+            mvpLocation = -1;
         }
     }
 
@@ -121,7 +136,7 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
             GL20.glDeleteProgram(program);
             GL20.glDeleteShader(vertexShader);
             GL20.glDeleteShader(fragmentShader);
-            throw new IllegalStateException("Failed to link debug triangle shader program: " + log);
+            throw new IllegalStateException("Failed to link shader program: " + log);
         }
 
         GL20.glDeleteShader(vertexShader);
@@ -137,7 +152,7 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
         if (GL20.glGetShaderi(shader, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE) {
             String log = GL20.glGetShaderInfoLog(shader);
             GL20.glDeleteShader(shader);
-            throw new IllegalStateException("Failed to compile debug triangle shader: " + log);
+            throw new IllegalStateException("Failed to compile shader: " + log);
         }
 
         return shader;
@@ -146,17 +161,18 @@ public final class LwjglOpenGlCommands implements OpenGlCommands {
     private MeshResources requireMesh(int meshHandle) {
         MeshResources mesh = meshes.get(meshHandle);
         if (mesh == null) {
-            throw new IllegalArgumentException("Missing debug mesh handle: " + meshHandle);
+            throw new IllegalArgumentException("Missing mesh handle: " + meshHandle);
         }
         return mesh;
     }
 
     private static float[] toFloatArray(DebugMesh mesh) {
-        float[] values = new float[mesh.vertices().size() * 5];
+        float[] values = new float[mesh.vertices().size() * FLOATS_PER_VERTEX];
         int index = 0;
         for (DebugVertex vertex : mesh.vertices()) {
             values[index++] = vertex.x();
             values[index++] = vertex.y();
+            values[index++] = vertex.z();
             values[index++] = vertex.red();
             values[index++] = vertex.green();
             values[index++] = vertex.blue();

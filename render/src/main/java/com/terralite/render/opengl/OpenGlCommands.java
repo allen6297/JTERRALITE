@@ -13,7 +13,11 @@ public interface OpenGlCommands {
 
     void clear(ClearColor clearColor);
 
-    void drawMesh(int meshHandle);
+    /**
+     * Draw the mesh identified by {@code meshHandle} using the supplied column-major
+     * 4x4 MVP matrix (float[16]).
+     */
+    void drawMesh(int meshHandle, float[] mvp);
 
     void destroyMesh(int meshHandle);
 }
