@@ -1,5 +1,6 @@
 package com.terralite.game.content;
 
+import com.terralite.content.assets.ContentAssetIndex;
 import com.terralite.content.validation.ContentValidationIssue;
 import com.terralite.content.validation.ContentValidationResult;
 import com.terralite.core.registry.FrozenRegistry;
@@ -8,6 +9,7 @@ import com.terralite.core.registry.RegistryKey;
 import com.terralite.core.registry.ResourceId;
 import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
+import com.terralite.game.block.BlockTextures;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
@@ -20,6 +22,10 @@ import java.util.Objects;
 
 public final class GameContentValidator {
     public ContentValidationResult validate(GameData gameData) {
+        return validate(gameData, null);
+    }
+
+    public ContentValidationResult validate(GameData gameData, ContentAssetIndex assets) {
         Objects.requireNonNull(gameData, "gameData");
 
         List<ContentValidationIssue> issues = new ArrayList<>();
@@ -36,6 +42,7 @@ public final class GameContentValidator {
         validateBiomeSurface(biomes, blocks, issues);
         validateTagMembers(tags, blocks, items, issues);
         validateSpawnAreas(spawnAreas, issues);
+        validateBlockAssets(blocks, assets, issues);
 
         if (categories != null) {
             validateBlockCategories(blocks, categories, issues);
@@ -44,6 +51,52 @@ public final class GameContentValidator {
         }
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void validateBlockAssets(
+            FrozenRegistry<Block> blocks,
+            ContentAssetIndex assets,
+            List<ContentValidationIssue> issues
+    ) {
+        if (blocks == null || assets == null) {
+            return;
+        }
+        for (ResourceId blockId : blocks.ids()) {
+            Block block = blocks.require(blockId);
+            BlockTextures textures = block.properties().textures();
+            if (textures == null) {
+                continue;
+            }
+            ResourceId modelId = block.properties().model().id();
+            if (assets.findModel(modelId).isEmpty()) {
+                issues.add(ContentValidationIssue.of(
+                        "block.model.missing",
+                        "Block " + blockId + " references missing model asset " + modelId
+                ));
+            }
+            validateTexture(blockId, "all", textures.all(), assets, issues);
+            validateTexture(blockId, "top", textures.top(), assets, issues);
+            validateTexture(blockId, "bottom", textures.bottom(), assets, issues);
+            validateTexture(blockId, "side", textures.side(), assets, issues);
+        }
+    }
+
+    private static void validateTexture(
+            ResourceId blockId,
+            String slot,
+            ResourceId textureId,
+            ContentAssetIndex assets,
+            List<ContentValidationIssue> issues
+    ) {
+        if (textureId == null) {
+            return;
+        }
+        if (assets.findTexture(textureId).isEmpty()) {
+            issues.add(ContentValidationIssue.of(
+                    "block.texture.missing",
+                    "Block " + blockId + " " + slot + " texture references missing asset " + textureId
+            ));
+        }
     }
 
     private static void validateSpawnAreas(

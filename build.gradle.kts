@@ -35,5 +35,6 @@ subprojects {
 tasks.register("check") {
     group = "verification"
     description = "Runs repository-level verification checks."
+    dependsOn(subprojects.map { it.tasks.named("check") })
     dependsOn(":tools:checkTypeScriptApi")
 }

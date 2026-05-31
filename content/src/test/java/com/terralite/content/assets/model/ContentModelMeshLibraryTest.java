@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContentModelMeshLibraryTest {
@@ -18,7 +19,7 @@ class ContentModelMeshLibraryTest {
     Path tempDir;
 
     @Test
-    void loadsSupportedObjAndBlockbenchMeshesFromPackModels() throws Exception {
+    void loadsSupportedMeshesFromPackModels() throws Exception {
         Path packRoot = tempDir.resolve("base");
         Files.createDirectories(packRoot.resolve("assets/models/block"));
         Files.writeString(packRoot.resolve("pack.json"), """
@@ -45,13 +46,40 @@ class ContentModelMeshLibraryTest {
               ]
             }
             """);
-        Files.writeString(packRoot.resolve("assets/models/block/cube_all.json"), "{}");
+        Files.writeString(packRoot.resolve("assets/models/block/cube_all.json"), """
+            { "type": "cube_all" }
+            """);
 
         var pack = new ContentPackLoader().load(packRoot);
         var meshes = new ContentModelMeshLibrary().loadSupported(ContentModelIndex.load(List.of(pack)));
 
-        assertEquals(2, meshes.size());
+        assertEquals(3, meshes.size());
         assertTrue(meshes.containsKey(ResourceId.id("terralite:block/triangle")));
         assertEquals(12, meshes.get(ResourceId.id("terralite:block/cube")).triangleCount());
+        assertEquals(12, meshes.get(ResourceId.id("terralite:block/cube_all")).triangleCount());
+    }
+
+    @Test
+    void reportsModelIdAndPathWhenMeshLoadFails() throws Exception {
+        Path packRoot = tempDir.resolve("broken");
+        Files.createDirectories(packRoot.resolve("assets/models/block"));
+        Files.writeString(packRoot.resolve("pack.json"), """
+            {
+              "id": "terralite:broken",
+              "name": "Broken",
+              "version": "1.0.0"
+            }
+            """);
+        Path modelPath = packRoot.resolve("assets/models/block/bad.json");
+        Files.writeString(modelPath, """
+            { "type": "nope" }
+            """);
+
+        var pack = new ContentPackLoader().load(packRoot);
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> new ContentModelMeshLibrary().loadSupported(ContentModelIndex.load(List.of(pack))));
+
+        assertTrue(exception.getMessage().contains("terralite:block/bad"));
+        assertTrue(exception.getMessage().contains(modelPath.toString()));
     }
 }

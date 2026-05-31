@@ -1,5 +1,8 @@
 package com.terralite.game.content;
 
+import com.terralite.content.assets.ContentAssetIndex;
+import com.terralite.content.pack.ContentPack;
+import com.terralite.content.pack.ContentPackLoader;
 import com.terralite.content.validation.ContentValidationResult;
 import com.terralite.core.registry.GameData;
 import com.terralite.core.registry.MutableRegistry;
@@ -7,16 +10,25 @@ import com.terralite.core.registry.RegistryManager;
 import com.terralite.core.registry.ResourceId;
 import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
+import com.terralite.game.block.BlockTextures;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.tag.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameContentValidatorTest {
+    @TempDir
+    Path tempDir;
+
     private static RegistryManager baseRegistries() {
         RegistryManager registries = new RegistryManager();
         registries.create(TerraliteRegistries.BLOCKS);
@@ -201,5 +213,82 @@ class GameContentValidatorTest {
         assertEquals("item.category.missing", result.issues().get(1).code());
         assertEquals("category.icon.missing", result.issues().get(2).code());
         assertEquals("category.entry.missing", result.issues().get(3).code());
+    }
+
+    @Test
+    void passesWhenBlockModelAndTextureAssetsExist() throws Exception {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:stone"), Block.builder()
+                        .model("terralite:block/cube_all")
+                        .textures(BlockTextures.all(ResourceId.id("terralite:block/stone")))
+                        .build());
+        ContentAssetIndex assets = ContentAssetIndex.load(List.of(writeAssetPack(
+                "cube_all.json",
+                List.of("stone.png")
+        )));
+
+        assertTrue(new GameContentValidator().validate(registries.freeze(), assets).isValid());
+    }
+
+    @Test
+    void reportsMissingBlockModelAndTextureAssets() throws Exception {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:grass_block"), Block.builder()
+                        .model("terralite:block/missing_model")
+                        .textures(new BlockTextures(
+                                null,
+                                ResourceId.id("terralite:block/missing_top"),
+                                ResourceId.id("terralite:block/dirt"),
+                                ResourceId.id("terralite:block/missing_side")
+                        ))
+                        .build());
+        ContentAssetIndex assets = ContentAssetIndex.load(List.of(writeAssetPack(
+                "cube_all.json",
+                List.of("dirt.png")
+        )));
+
+        ContentValidationResult result = new GameContentValidator().validate(registries.freeze(), assets);
+
+        assertEquals(3, result.issues().size());
+        assertEquals("block.model.missing", result.issues().get(0).code());
+        assertEquals("block.texture.missing", result.issues().get(1).code());
+        assertEquals("block.texture.missing", result.issues().get(2).code());
+    }
+
+    @Test
+    void assetValidationIgnoresBlocksWithoutTextureReferences() throws Exception {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:marker"), Block.builder()
+                        .model("terralite:block/missing_model")
+                        .build());
+        ContentAssetIndex assets = ContentAssetIndex.load(List.of(writeAssetPack(
+                "cube_all.json",
+                List.of()
+        )));
+
+        assertTrue(new GameContentValidator().validate(registries.freeze(), assets).isValid());
+    }
+
+    private ContentPack writeAssetPack(String modelFileName, List<String> textureFileNames) throws Exception {
+        Path packRoot = tempDir.resolve("assets-" + System.nanoTime());
+        Files.createDirectories(packRoot.resolve("assets/models/block"));
+        Files.createDirectories(packRoot.resolve("assets/textures/block"));
+        Files.writeString(packRoot.resolve("pack.json"), """
+            {
+              "id": "terralite:assets",
+              "name": "Assets",
+              "version": "1.0.0"
+            }
+            """);
+        Files.writeString(packRoot.resolve("assets/models/block").resolve(modelFileName), """
+            { "type": "cube_all" }
+            """);
+        for (String textureFileName : textureFileNames) {
+            Files.writeString(packRoot.resolve("assets/textures/block").resolve(textureFileName), "placeholder");
+        }
+        return new ContentPackLoader().load(packRoot);
     }
 }

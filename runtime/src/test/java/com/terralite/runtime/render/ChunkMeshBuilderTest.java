@@ -106,4 +106,33 @@ class ChunkMeshBuilderTest {
         assertEquals(4.0f, mesh.mesh().vertices().get(1).x());
         assertEquals(textureId, mesh.mesh().vertices().get(0).texture());
     }
+
+    @Test
+    void modelMeshTextureSlotsUseBlockFaceTextures() {
+        ResourceId modelId = ResourceId.id("terralite:block/slotted");
+        ResourceId topTexture = ResourceId.id("terralite:block/top");
+        ResourceId bottomTexture = ResourceId.id("terralite:block/bottom");
+        ResourceId sideTexture = ResourceId.id("terralite:block/side");
+        RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:slotted_block"), Block.builder()
+                        .model(new BlockModel(modelId))
+                        .textures(new BlockTextures(null, topTexture, bottomTexture, sideTexture))
+                        .build());
+        ContentModelMesh modelMesh = new ContentModelMesh(List.of(
+                new ContentModelVertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, "top"),
+                new ContentModelVertex(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, "bottom"),
+                new ContentModelVertex(0.0f, 1.0f, 0.0f, 0.0f, 1.0f, "side")
+        ));
+        ChunkMeshBuilder modelBuilder = new ChunkMeshBuilder(registries.freeze(), Map.of(modelId, modelMesh));
+        World world = new World();
+        world.putChunk(new Chunk(ChunkPos.of(0, 0, 0)));
+        world.setBlock(BlockPos.of(0, 0, 0), BlockState.of("terralite:slotted_block"));
+
+        var mesh = modelBuilder.build(world, new RenderChunk(0, 0, 0)).orElseThrow();
+
+        assertEquals(topTexture, mesh.mesh().vertices().get(0).texture());
+        assertEquals(bottomTexture, mesh.mesh().vertices().get(1).texture());
+        assertEquals(sideTexture, mesh.mesh().vertices().get(2).texture());
+    }
 }

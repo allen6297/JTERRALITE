@@ -1,6 +1,5 @@
 package com.terralite.content.assets.model;
 
-import com.terralite.content.assets.ContentModelFormat;
 import com.terralite.content.assets.ContentModelIndex;
 import com.terralite.core.registry.ResourceId;
 
@@ -25,10 +24,14 @@ public final class ContentModelMeshLibrary {
 
         Map<ResourceId, ContentModelMesh> meshes = new LinkedHashMap<>();
         for (var model : index.models()) {
-            if (model.format() == ContentModelFormat.TERRALITE_JSON) {
-                continue;
+            try {
+                meshes.put(model.id(), loader.load(model));
+            } catch (IllegalArgumentException | UnsupportedOperationException exception) {
+                throw new IllegalArgumentException(
+                        "Failed to load model mesh " + model.id() + " from " + model.path(),
+                        exception
+                );
             }
-            meshes.put(model.id(), loader.load(model));
         }
         return Map.copyOf(meshes);
     }

@@ -96,7 +96,7 @@ public final class ChunkMeshBuilder {
         BlockTextures textures = texturesByBlock.get(state.id());
         ContentModelMesh modelMesh = modelMeshFor(state);
         if (modelMesh != null) {
-            addModelMesh(vertices, pos, modelMesh, red, green, blue, modelTexture(textures));
+            addModelMesh(vertices, pos, modelMesh, red, green, blue, textures);
             return;
         }
 
@@ -122,9 +122,10 @@ public final class ChunkMeshBuilder {
             float red,
             float green,
             float blue,
-            ResourceId texture
+            BlockTextures textures
     ) {
         for (ContentModelVertex vertex : mesh.vertices()) {
+            ResourceId vertexTexture = modelTexture(textures, vertex.textureSlot());
             vertices.add(new DebugVertex(
                     pos.x() + vertex.x(),
                     pos.y() + vertex.y(),
@@ -134,7 +135,7 @@ public final class ChunkMeshBuilder {
                     blue,
                     vertex.u(),
                     vertex.v(),
-                    texture
+                    vertexTexture
             ));
         }
     }
@@ -184,6 +185,22 @@ public final class ChunkMeshBuilder {
 
     private static ResourceId modelTexture(BlockTextures textures) {
         return textures == null ? null : textures.textureFor(BlockTextures.Face.UP);
+    }
+
+    private static ResourceId modelTexture(BlockTextures textures, String textureSlot) {
+        if (textures == null) {
+            return null;
+        }
+        if (textureSlot == null || textureSlot.isBlank()) {
+            return modelTexture(textures);
+        }
+        return switch (textureSlot) {
+            case "all" -> textures.all() != null ? textures.all() : modelTexture(textures);
+            case "top" -> textures.textureFor(BlockTextures.Face.UP);
+            case "bottom" -> textures.textureFor(BlockTextures.Face.DOWN);
+            case "side" -> textures.textureFor(BlockTextures.Face.NORTH);
+            default -> modelTexture(textures);
+        };
     }
 
     private static float colorChannel(BlockState state, int salt) {

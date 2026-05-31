@@ -45,7 +45,7 @@ public final class VulkanRenderBackend implements RenderBackend {
     private VulkanCommands commands;
     private TextureAtlas currentAtlas;
     private VulkanTextureAtlas textureAtlas;
-    private final Map<RenderChunk, VulkanMeshBuffer> chunkBuffers = new HashMap<>();
+    private final Map<RenderChunk, ChunkBuffer> chunkBuffers = new HashMap<>();
 
     private int currentFrame = 0;
     private long frameIndex = 0;
@@ -228,7 +228,8 @@ public final class VulkanRenderBackend implements RenderBackend {
         } else {
             syncChunkMeshBuffers(frame.scene().chunkMeshes());
         }
-        for (VulkanMeshBuffer buf : chunkBuffers.values()) {
+        for (ChunkBuffer chunkBuffer : chunkBuffers.values()) {
+            VulkanMeshBuffer buf = chunkBuffer.buffer();
             vkCmdBindVertexBuffers(cmd, 0, stack.longs(buf.buffer), stack.longs(0L));
             vkCmdDraw(cmd, buf.vertexCount, 1, 0, 0);
         }
@@ -252,7 +253,7 @@ public final class VulkanRenderBackend implements RenderBackend {
         // Create new chunks
         for (RenderChunk chunk : chunks) {
             chunkBuffers.computeIfAbsent(chunk, c ->
-                    VulkanMeshBuffer.create(ctx, ChunkDebugMeshFactory.create(c)));
+                    new ChunkBuffer(MeshSignature.untracked(), VulkanMeshBuffer.create(ctx, ChunkDebugMeshFactory.create(c))));
         }
     }
 
@@ -271,14 +272,20 @@ public final class VulkanRenderBackend implements RenderBackend {
         });
 
         for (RenderChunkMesh chunkMesh : chunkMeshes) {
-            chunkBuffers.computeIfAbsent(chunkMesh.chunk(), ignored ->
-                    VulkanMeshBuffer.create(ctx, chunkMesh.mesh()));
+            MeshSignature signature = MeshSignature.from(chunkMesh);
+            ChunkBuffer existing = chunkBuffers.get(chunkMesh.chunk());
+            if (existing == null || !existing.signature().equals(signature)) {
+                if (existing != null) {
+                    existing.destroy(ctx);
+                }
+                chunkBuffers.put(chunkMesh.chunk(), new ChunkBuffer(signature, VulkanMeshBuffer.create(ctx, chunkMesh.mesh())));
+            }
         }
     }
 
     private void destroyChunkBuffers() {
-        for (VulkanMeshBuffer buf : chunkBuffers.values()) {
-            buf.destroy(ctx);
+        for (ChunkBuffer chunkBuffer : chunkBuffers.values()) {
+            chunkBuffer.destroy(ctx);
         }
         chunkBuffers.clear();
     }
@@ -317,5 +324,29 @@ public final class VulkanRenderBackend implements RenderBackend {
             return glfwWindow.handle();
         }
         throw new IllegalStateException("VulkanRenderBackend requires a GlfwWindow");
+    }
+
+    record MeshSignature(int vertexCount, int vertexHash) {
+        static MeshSignature untracked() {
+            return new MeshSignature(-1, 0);
+        }
+
+        static MeshSignature from(RenderChunkMesh chunkMesh) {
+            return new MeshSignature(
+                    chunkMesh.mesh().vertices().size(),
+                    chunkMesh.mesh().vertices().hashCode()
+            );
+        }
+    }
+
+    private record ChunkBuffer(MeshSignature signature, VulkanMeshBuffer buffer) {
+        private ChunkBuffer {
+            Objects.requireNonNull(signature, "signature");
+            Objects.requireNonNull(buffer, "buffer");
+        }
+
+        private void destroy(VulkanContext ctx) {
+            buffer.destroy(ctx);
+        }
     }
 }

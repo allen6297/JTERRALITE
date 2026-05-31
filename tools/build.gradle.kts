@@ -15,6 +15,7 @@ tasks.register<JavaExec>("runVulkanSmoke") {
     description = "Opens a GLFW/Vulkan window with a 3x3 chunk marker grid for manual render verification."
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.terralite.tools.render.VulkanSmoke")
+    configureGlfwJvm()
 }
 
 tasks.register<JavaExec>("runContentRenderSmoke") {
@@ -23,6 +24,13 @@ tasks.register<JavaExec>("runContentRenderSmoke") {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.terralite.tools.render.ContentRenderSmoke")
     args(rootProject.layout.projectDirectory.file("packs").asFile.absolutePath)
+    configureGlfwJvm()
+}
+
+fun JavaExec.configureGlfwJvm() {
+    if (System.getProperty("os.name").startsWith("Mac")) {
+        jvmArgs("-XstartOnFirstThread")
+    }
 }
 
 tasks.register<JavaExec>("generateTypeScriptApi") {

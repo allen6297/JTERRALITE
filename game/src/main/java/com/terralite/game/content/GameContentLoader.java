@@ -1,5 +1,6 @@
 package com.terralite.game.content;
 
+import com.terralite.content.assets.ContentAssetIndex;
 import com.terralite.content.loading.ContentPackDiscovery;
 import com.terralite.content.loading.PackLoadOrderResolver;
 import com.terralite.content.pack.ContentPack;
@@ -87,7 +88,7 @@ public final class GameContentLoader {
                 )
         );
         GameData gameData = registries.freeze();
-        validator.validate(gameData).requireValid();
+        validator.validate(gameData, ContentAssetIndex.load(orderedPacks)).requireValid();
 
         return new GameContentLoadReport(orderedPacks, loadResult, startupScripts, gameData);
     }

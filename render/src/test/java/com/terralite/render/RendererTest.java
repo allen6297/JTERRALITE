@@ -66,6 +66,29 @@ class RendererTest {
     }
 
     @Test
+    void rendererStopsInitializedBackendBeforeStart() {
+        RecordingRenderBackend backend = new RecordingRenderBackend();
+        Renderer renderer = new Renderer(backend);
+
+        renderer.stop();
+
+        assertEquals(RenderState.STOPPED, renderer.state());
+        assertEquals(List.of("initialize", "stop"), backend.lifecycleEvents());
+    }
+
+    @Test
+    void rendererCloseIsIdempotentStopAlias() {
+        RecordingRenderBackend backend = new RecordingRenderBackend();
+        Renderer renderer = new Renderer(backend);
+
+        renderer.close();
+        renderer.close();
+
+        assertEquals(RenderState.STOPPED, renderer.state());
+        assertEquals(List.of("initialize", "stop"), backend.lifecycleEvents());
+    }
+
+    @Test
     void viewportCalculatesAspectRatio() {
         assertEquals(16.0 / 9.0, new Viewport(1920, 1080).aspectRatio());
     }

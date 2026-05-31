@@ -71,7 +71,7 @@ class ContentRenderSmokeTest {
         var objModel = models.find(ResourceId.id("terralite:block/obj_sample")).orElseThrow();
         assertEquals(ContentModelFormat.WAVEFRONT_OBJ, objModel.format());
         assertEquals(1, new ContentModelMeshLoader().load(objModel).triangleCount());
-        assertEquals(2, modelMeshes.size());
+        assertEquals(5, modelMeshes.size());
     }
 
     private static Path repoPacksRoot() {

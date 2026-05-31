@@ -2,7 +2,7 @@ package com.terralite.render;
 
 import java.util.Objects;
 
-public final class Renderer {
+public final class Renderer implements AutoCloseable {
     private final RenderBackend backend;
     private RenderState state = RenderState.CREATED;
 
@@ -35,12 +35,17 @@ public final class Renderer {
     }
 
     public void stop() {
-        if (state != RenderState.RUNNING) {
+        if (state == RenderState.STOPPED) {
             return;
         }
 
         backend.stop();
         state = RenderState.STOPPED;
+    }
+
+    @Override
+    public void close() {
+        stop();
     }
 
     private void ensureRunning() {

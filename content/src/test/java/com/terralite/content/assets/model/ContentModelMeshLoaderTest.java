@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ContentModelMeshLoaderTest {
     @TempDir
@@ -39,14 +38,20 @@ class ContentModelMeshLoaderTest {
     }
 
     @Test
-    void rejectsFormatsThatDoNotHaveMeshParsersYet() {
+    void loadsTerraliteJsonModelMeshFromAsset() throws Exception {
+        Path path = tempDir.resolve("cube_all.json");
+        Files.writeString(path, """
+            { "type": "cube_all" }
+            """);
         ContentModelAsset model = new ContentModelAsset(
                 ResourceId.id("terralite:block/cube_all"),
                 ContentModelFormat.TERRALITE_JSON,
-                tempDir.resolve("cube_all.json")
+                path
         );
 
-        assertThrows(UnsupportedOperationException.class, () -> new ContentModelMeshLoader().load(model));
+        ContentModelMesh mesh = new ContentModelMeshLoader().load(model);
+
+        assertEquals(12, mesh.triangleCount());
     }
 
     @Test

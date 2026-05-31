@@ -41,6 +41,7 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl-shaderc:$lwjglVersion:$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-stb:$lwjglVersion:$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-vma:$lwjglVersion:$lwjglNatives")
+    runtimeOnly("org.lwjgl:lwjgl-vulkan:$lwjglVersion:$lwjglNatives")
 
     runtimeOnly(imguiNatives)
 }
