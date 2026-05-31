@@ -18,10 +18,12 @@ public final class VulkanPipeline {
     /** Size in bytes of the MVP push constant (mat4 = 16 floats). */
     public static final int MVP_PUSH_CONSTANT_SIZE = 16 * Float.BYTES;
 
+    public final long descriptorSetLayout;
     public final long pipelineLayout;
     public final long pipeline;
 
-    private VulkanPipeline(long pipelineLayout, long pipeline) {
+    private VulkanPipeline(long descriptorSetLayout, long pipelineLayout, long pipeline) {
+        this.descriptorSetLayout = descriptorSetLayout;
         this.pipelineLayout = pipelineLayout;
         this.pipeline = pipeline;
     }
@@ -34,19 +36,21 @@ public final class VulkanPipeline {
             long vertModule = createShaderModule(ctx.device, vertSpirv, stack);
             long fragModule = createShaderModule(ctx.device, fragSpirv, stack);
 
-            long pipelineLayout = createPipelineLayout(ctx.device, stack);
+            long descriptorSetLayout = createDescriptorSetLayout(ctx.device, stack);
+            long pipelineLayout = createPipelineLayout(ctx.device, descriptorSetLayout, stack);
             long pipeline = createPipeline(ctx.device, swapchain, pipelineLayout, vertModule, fragModule, stack);
 
             vkDestroyShaderModule(ctx.device, vertModule, null);
             vkDestroyShaderModule(ctx.device, fragModule, null);
 
-            return new VulkanPipeline(pipelineLayout, pipeline);
+            return new VulkanPipeline(descriptorSetLayout, pipelineLayout, pipeline);
         }
     }
 
     public void destroy(VulkanContext ctx) {
         vkDestroyPipeline(ctx.device, pipeline, null);
         vkDestroyPipelineLayout(ctx.device, pipelineLayout, null);
+        vkDestroyDescriptorSetLayout(ctx.device, descriptorSetLayout, null);
     }
 
     // ---- shaders ----
@@ -55,22 +59,28 @@ public final class VulkanPipeline {
             #version 450
             layout(location = 0) in vec3 inPosition;
             layout(location = 1) in vec3 inColor;
+            layout(location = 2) in vec2 inUv;
             layout(location = 0) out vec3 fragColor;
+            layout(location = 1) out vec2 fragUv;
             layout(push_constant) uniform PushConstants {
                 mat4 mvp;
             } push;
             void main() {
                 gl_Position = push.mvp * vec4(inPosition, 1.0);
                 fragColor = inColor;
+                fragUv = inUv;
             }
             """;
 
     private static final String FRAGMENT_SHADER_GLSL = """
             #version 450
             layout(location = 0) in vec3 fragColor;
+            layout(location = 1) in vec2 fragUv;
+            layout(binding = 0) uniform sampler2D atlasSampler;
             layout(location = 0) out vec4 outColor;
             void main() {
-                outColor = vec4(fragColor, 1.0);
+                vec4 sampled = texture(atlasSampler, fragUv);
+                outColor = vec4(sampled.rgb * fragColor, sampled.a);
             }
             """;
 
@@ -107,7 +117,24 @@ public final class VulkanPipeline {
         return modulePtr.get(0);
     }
 
-    private static long createPipelineLayout(VkDevice device, MemoryStack stack) {
+    private static long createDescriptorSetLayout(VkDevice device, MemoryStack stack) {
+        VkDescriptorSetLayoutBinding.Buffer samplerBinding = VkDescriptorSetLayoutBinding.calloc(1, stack)
+                .binding(0)
+                .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                .descriptorCount(1)
+                .stageFlags(VK_SHADER_STAGE_FRAGMENT_BIT);
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo = VkDescriptorSetLayoutCreateInfo.calloc(stack)
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
+                .pBindings(samplerBinding);
+
+        LongBuffer layoutPtr = stack.mallocLong(1);
+        VulkanUtils.check(vkCreateDescriptorSetLayout(device, layoutInfo, null, layoutPtr),
+                "Failed to create descriptor set layout");
+        return layoutPtr.get(0);
+    }
+
+    private static long createPipelineLayout(VkDevice device, long descriptorSetLayout, MemoryStack stack) {
         VkPushConstantRange.Buffer pushConstantRange = VkPushConstantRange.calloc(1, stack)
                 .stageFlags(VK_SHADER_STAGE_VERTEX_BIT)
                 .offset(0)
@@ -115,6 +142,7 @@ public final class VulkanPipeline {
 
         VkPipelineLayoutCreateInfo layoutInfo = VkPipelineLayoutCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
+                .pSetLayouts(stack.longs(descriptorSetLayout))
                 .pPushConstantRanges(pushConstantRange);
 
         LongBuffer layoutPtr = stack.mallocLong(1);
@@ -131,14 +159,15 @@ public final class VulkanPipeline {
         stages.get(1).sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
                 .stage(VK_SHADER_STAGE_FRAGMENT_BIT).module(fragModule).pName(stack.UTF8("main"));
 
-        // Vertex input: binding 0, stride = 6 floats (xyz rgb)
-        int stride = 6 * Float.BYTES;
+        // Vertex input: binding 0, stride = 8 floats (xyz rgb uv)
+        int stride = 8 * Float.BYTES;
         VkVertexInputBindingDescription.Buffer bindingDesc = VkVertexInputBindingDescription.calloc(1, stack)
                 .binding(0).stride(stride).inputRate(VK_VERTEX_INPUT_RATE_VERTEX);
 
-        VkVertexInputAttributeDescription.Buffer attrDesc = VkVertexInputAttributeDescription.calloc(2, stack);
+        VkVertexInputAttributeDescription.Buffer attrDesc = VkVertexInputAttributeDescription.calloc(3, stack);
         attrDesc.get(0).binding(0).location(0).format(VK_FORMAT_R32G32B32_SFLOAT).offset(0);
         attrDesc.get(1).binding(0).location(1).format(VK_FORMAT_R32G32B32_SFLOAT).offset(3 * Float.BYTES);
+        attrDesc.get(2).binding(0).location(2).format(VK_FORMAT_R32G32_SFLOAT).offset(6 * Float.BYTES);
 
         VkPipelineVertexInputStateCreateInfo vertexInput = VkPipelineVertexInputStateCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)

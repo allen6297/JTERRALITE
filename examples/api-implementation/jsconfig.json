@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "target": "ES2020"
+  },
+  "files": [
+    "../../types/terralite-scripting.d.ts"
+  ],
+  "include": [
+    "scripts/**/*.js"
+  ]
+}

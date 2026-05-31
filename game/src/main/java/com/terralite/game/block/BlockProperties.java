@@ -14,7 +14,9 @@ public record BlockProperties(
     boolean requiresTool,
     String material,
     String soundType,
-    List<ResourceId> categories
+    List<ResourceId> categories,
+    BlockTextures textures,
+    BlockModel model
 ) {
     public BlockProperties {
         Objects.requireNonNull(displayName, "displayName");
@@ -29,5 +31,6 @@ public record BlockProperties(
         Objects.requireNonNull(material, "material");
         Objects.requireNonNull(soundType, "soundType");
         categories = List.copyOf(Objects.requireNonNull(categories, "categories"));
+        model = Objects.requireNonNull(model, "model");
     }
 }

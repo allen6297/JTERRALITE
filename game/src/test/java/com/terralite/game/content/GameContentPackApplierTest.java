@@ -50,11 +50,11 @@ class GameContentPackApplierTest {
     }
 
     private static void writePack(Path packRoot) throws Exception {
-        Files.createDirectories(packRoot.resolve("data/terralite/blocks/natural"));
-        Files.createDirectories(packRoot.resolve("data/terralite/items"));
-        Files.createDirectories(packRoot.resolve("data/terralite/creative_categories"));
-        Files.createDirectories(packRoot.resolve("data/terralite/recipes"));
-        Files.createDirectories(packRoot.resolve("assets/terralite/lang"));
+        Files.createDirectories(packRoot.resolve("data/blocks/natural"));
+        Files.createDirectories(packRoot.resolve("data/items"));
+        Files.createDirectories(packRoot.resolve("data/creative_categories"));
+        Files.createDirectories(packRoot.resolve("data/recipes"));
+        Files.createDirectories(packRoot.resolve("assets/lang"));
 
         Files.writeString(packRoot.resolve("pack.json"), """
             {
@@ -63,7 +63,7 @@ class GameContentPackApplierTest {
               "version": "1.0.0"
             }
             """);
-        Files.writeString(packRoot.resolve("data/terralite/blocks/natural/stone.json"), """
+        Files.writeString(packRoot.resolve("data/blocks/natural/stone.json"), """
             {
               "hardness": 1.5,
               "resistance": 6.0,
@@ -73,20 +73,20 @@ class GameContentPackApplierTest {
               "categories": ["terralite:building_blocks"]
             }
             """);
-        Files.writeString(packRoot.resolve("data/terralite/items/iron_pickaxe.json"), """
+        Files.writeString(packRoot.resolve("data/items/iron_pickaxe.json"), """
             {
               "weight": 3.0,
               "categories": ["terralite:tools_and_utilities"]
             }
             """);
-        Files.writeString(packRoot.resolve("data/terralite/creative_categories/building_blocks.json"), """
+        Files.writeString(packRoot.resolve("data/creative_categories/building_blocks.json"), """
             {
               "title": "Building Blocks",
               "icon": "terralite:natural/stone",
               "entries": ["terralite:natural/stone"]
             }
             """);
-        Files.writeString(packRoot.resolve("data/terralite/recipes/stonecutting.json"), "{}");
-        Files.writeString(packRoot.resolve("assets/terralite/lang/en_us.json"), "{}");
+        Files.writeString(packRoot.resolve("data/recipes/stonecutting.json"), "{}");
+        Files.writeString(packRoot.resolve("assets/lang/en_us.json"), "{}");
     }
 }

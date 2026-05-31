@@ -1,0 +1,13 @@
+{
+  "display_name": "Stone",
+  "hardness": 1.5,
+  "resistance": 6.0,
+  "solid": true,
+  "material": "stone",
+  "sound_type": "stone",
+  "model": "terralite:block/cube_all",
+  "textures": {
+    "all": "terralite:block/stone"
+  },
+  "categories": ["terralite:building_blocks"]
+}

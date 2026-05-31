@@ -1,0 +1,14 @@
+{
+  "display_name": "Wheat",
+  "hardness": 0.0,
+  "resistance": 0.0,
+  "solid": false,
+  "transparent": true,
+  "material": "plant",
+  "sound_type": "grass",
+  "model": "terralite:block/cross",
+  "textures": {
+    "all": "terralite:block/wheat"
+  },
+  "categories": ["terralite:natural_items"]
+}

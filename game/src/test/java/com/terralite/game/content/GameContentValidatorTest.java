@@ -23,6 +23,7 @@ class GameContentValidatorTest {
         registries.create(TerraliteRegistries.ITEMS);
         registries.create(TerraliteRegistries.BIOMES);
         registries.create(TerraliteRegistries.TAGS);
+        registries.create(TerraliteRegistries.WORLDSGEN_SPAWN_AREAS);
         registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
         return registries;
     }

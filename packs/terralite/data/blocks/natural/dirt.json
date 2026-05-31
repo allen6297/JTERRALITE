@@ -1,0 +1,13 @@
+{
+  "display_name": "Dirt",
+  "hardness": 0.5,
+  "resistance": 0.5,
+  "solid": true,
+  "material": "dirt",
+  "sound_type": "gravel",
+  "model": "terralite:block/cube_all",
+  "textures": {
+    "all": "terralite:block/dirt"
+  },
+  "categories": ["terralite:building_blocks"]
+}

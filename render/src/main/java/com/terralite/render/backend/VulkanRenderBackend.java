@@ -2,6 +2,7 @@ package com.terralite.render.backend;
 
 import com.terralite.render.RenderBackend;
 import com.terralite.render.RenderChunk;
+import com.terralite.render.RenderChunkMesh;
 import com.terralite.render.RenderFrame;
 import com.terralite.render.RenderStats;
 import com.terralite.render.Viewport;
@@ -12,7 +13,9 @@ import com.terralite.render.vulkan.VulkanContext;
 import com.terralite.render.vulkan.VulkanMeshBuffer;
 import com.terralite.render.vulkan.VulkanPipeline;
 import com.terralite.render.vulkan.VulkanSwapchain;
+import com.terralite.render.vulkan.VulkanTextureAtlas;
 import com.terralite.render.vulkan.VulkanUtils;
+import com.terralite.render.texture.TextureAtlas;
 import com.terralite.render.window.RenderWindow;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.*;
@@ -40,6 +43,8 @@ public final class VulkanRenderBackend implements RenderBackend {
     private VulkanSwapchain swapchain;
     private VulkanPipeline pipeline;
     private VulkanCommands commands;
+    private TextureAtlas currentAtlas;
+    private VulkanTextureAtlas textureAtlas;
     private final Map<RenderChunk, VulkanMeshBuffer> chunkBuffers = new HashMap<>();
 
     private int currentFrame = 0;
@@ -59,6 +64,8 @@ public final class VulkanRenderBackend implements RenderBackend {
         swapchain = VulkanSwapchain.create(ctx, vp.width(), vp.height());
         pipeline = VulkanPipeline.create(ctx, swapchain);
         commands = VulkanCommands.create(ctx);
+        currentAtlas = fallbackAtlas();
+        textureAtlas = VulkanTextureAtlas.create(ctx, commands, pipeline.descriptorSetLayout, currentAtlas);
     }
 
     @Override
@@ -74,6 +81,7 @@ public final class VulkanRenderBackend implements RenderBackend {
     @Override
     public RenderStats render(RenderFrame frame) {
         Objects.requireNonNull(frame, "frame");
+        ensureTextureAtlas(frame.textureAtlas());
 
         // Poll events first so shouldClose() stays up to date
         window.pollEvents();
@@ -149,6 +157,10 @@ public final class VulkanRenderBackend implements RenderBackend {
     public void stop() {
         vkDeviceWaitIdle(ctx.device);
         destroyChunkBuffers();
+        if (textureAtlas != null) {
+            textureAtlas.destroy(ctx);
+            textureAtlas = null;
+        }
         commands.destroy(ctx);
         pipeline.destroy(ctx);
         swapchain.destroy(ctx);
@@ -181,6 +193,14 @@ public final class VulkanRenderBackend implements RenderBackend {
 
         vkCmdBeginRenderPass(cmd, renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
+        vkCmdBindDescriptorSets(
+                cmd,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline.pipelineLayout,
+                0,
+                stack.longs(textureAtlas.descriptorSet),
+                null
+        );
 
         // Dynamic viewport + scissor
         VkViewport.Buffer viewport = VkViewport.calloc(1, stack)
@@ -202,8 +222,12 @@ public final class VulkanRenderBackend implements RenderBackend {
         mvpBuf.flip();
         vkCmdPushConstants(cmd, pipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, mvpBuf);
 
-        // Draw chunk markers
-        syncChunkBuffers(frame.scene().chunks());
+        // Draw real chunk meshes when present; fall back to flat markers for empty/debug scenes.
+        if (frame.scene().chunkMeshes().isEmpty()) {
+            syncChunkBuffers(frame.scene().chunks());
+        } else {
+            syncChunkMeshBuffers(frame.scene().chunkMeshes());
+        }
         for (VulkanMeshBuffer buf : chunkBuffers.values()) {
             vkCmdBindVertexBuffers(cmd, 0, stack.longs(buf.buffer), stack.longs(0L));
             vkCmdDraw(cmd, buf.vertexCount, 1, 0, 0);
@@ -232,6 +256,26 @@ public final class VulkanRenderBackend implements RenderBackend {
         }
     }
 
+    private void syncChunkMeshBuffers(List<RenderChunkMesh> chunkMeshes) {
+        Set<RenderChunk> submitted = new HashSet<>();
+        for (RenderChunkMesh chunkMesh : chunkMeshes) {
+            submitted.add(chunkMesh.chunk());
+        }
+
+        chunkBuffers.entrySet().removeIf(entry -> {
+            if (!submitted.contains(entry.getKey())) {
+                entry.getValue().destroy(ctx);
+                return true;
+            }
+            return false;
+        });
+
+        for (RenderChunkMesh chunkMesh : chunkMeshes) {
+            chunkBuffers.computeIfAbsent(chunkMesh.chunk(), ignored ->
+                    VulkanMeshBuffer.create(ctx, chunkMesh.mesh()));
+        }
+    }
+
     private void destroyChunkBuffers() {
         for (VulkanMeshBuffer buf : chunkBuffers.values()) {
             buf.destroy(ctx);
@@ -246,6 +290,25 @@ public final class VulkanRenderBackend implements RenderBackend {
         Viewport vp = window.viewport();
         swapchain = VulkanSwapchain.create(ctx, vp.width(), vp.height());
         pipeline = VulkanPipeline.create(ctx, swapchain);
+        if (textureAtlas != null) {
+            textureAtlas.destroy(ctx);
+        }
+        textureAtlas = VulkanTextureAtlas.create(ctx, commands, pipeline.descriptorSetLayout, currentAtlas);
+    }
+
+    private void ensureTextureAtlas(TextureAtlas requestedAtlas) {
+        TextureAtlas atlas = requestedAtlas == null ? fallbackAtlas() : requestedAtlas;
+        if (atlas == currentAtlas) {
+            return;
+        }
+        vkDeviceWaitIdle(ctx.device);
+        textureAtlas.destroy(ctx);
+        currentAtlas = atlas;
+        textureAtlas = VulkanTextureAtlas.create(ctx, commands, pipeline.descriptorSetLayout, currentAtlas);
+    }
+
+    private static TextureAtlas fallbackAtlas() {
+        return new TextureAtlas(1, 1, new int[] {0xffffffff}, Map.of());
     }
 
     private long windowHandle() {

@@ -12,6 +12,7 @@ import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.tag.Tag;
+import com.terralite.game.worldsgen.WorldsgenSpawnArea;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,12 +27,15 @@ public final class GameContentValidator {
         FrozenRegistry<Item> items = registryOrNull(gameData, TerraliteRegistries.ITEMS, issues);
         FrozenRegistry<Biome> biomes = registryOrNull(gameData, TerraliteRegistries.BIOMES, issues);
         FrozenRegistry<Tag> tags = registryOrNull(gameData, TerraliteRegistries.TAGS, issues);
+        FrozenRegistry<WorldsgenSpawnArea> spawnAreas =
+                registryOrNull(gameData, TerraliteRegistries.WORLDSGEN_SPAWN_AREAS, issues);
         FrozenRegistry<CreativeCategory> categories =
                 registryOrNull(gameData, TerraliteRegistries.CREATIVE_CATEGORIES, issues);
 
         validateItemPlacesBlock(items, blocks, issues);
         validateBiomeSurface(biomes, blocks, issues);
         validateTagMembers(tags, blocks, items, issues);
+        validateSpawnAreas(spawnAreas, issues);
 
         if (categories != null) {
             validateBlockCategories(blocks, categories, issues);
@@ -40,6 +44,24 @@ public final class GameContentValidator {
         }
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void validateSpawnAreas(
+            FrozenRegistry<WorldsgenSpawnArea> spawnAreas,
+            List<ContentValidationIssue> issues
+    ) {
+        if (spawnAreas == null) {
+            return;
+        }
+        for (ResourceId spawnAreaId : spawnAreas.ids()) {
+            WorldsgenSpawnArea spawnArea = spawnAreas.require(spawnAreaId);
+            if (spawnArea.chunkPositions().isEmpty()) {
+                issues.add(ContentValidationIssue.of(
+                        "worldsgen.spawn_area.empty",
+                        "Worldsgen spawn area " + spawnAreaId + " does not produce any chunks"
+                ));
+            }
+        }
     }
 
     private static void validateBiomeSurface(

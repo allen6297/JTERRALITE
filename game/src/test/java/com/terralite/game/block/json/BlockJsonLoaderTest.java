@@ -30,6 +30,10 @@ class BlockJsonLoaderTest {
               "requires_tool": true,
               "material": "stone",
               "sound_type": "stone",
+              "model": "terralite:block/cube_all",
+              "textures": {
+                "all": "terralite:block/stone"
+              },
               "categories": ["terralite:building_blocks"]
             }
             """;
@@ -47,6 +51,8 @@ class BlockJsonLoaderTest {
         assertTrue(stone.properties().requiresTool());
         assertEquals("stone", stone.properties().material());
         assertEquals("stone", stone.properties().soundType());
+        assertEquals(ResourceId.id("terralite:block/cube_all"), stone.properties().model().id());
+        assertEquals(ResourceId.id("terralite:block/stone"), stone.properties().textures().all());
         assertEquals(List.of(ResourceId.id("terralite:building_blocks")), stone.properties().categories());
     }
 

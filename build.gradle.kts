@@ -31,3 +31,9 @@ subprojects {
         useJUnitPlatform()
     }
 }
+
+tasks.register("check") {
+    group = "verification"
+    description = "Runs repository-level verification checks."
+    dependsOn(":tools:checkTypeScriptApi")
+}

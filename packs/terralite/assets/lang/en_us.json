@@ -1,0 +1,9 @@
+{
+  "block.terralite.natural.stone": "Stone",
+  "block.terralite.natural.dirt": "Dirt",
+  "block.terralite.natural.grass_block": "Grass Block",
+  "block.terralite.crops.wheat": "Wheat",
+  "item.terralite.items.materials.stone_shard": "Stone Shard",
+  "item.terralite.items.seeds.wheat_seeds": "Wheat Seeds",
+  "biome.terralite.plains": "Plains"
+}

@@ -28,7 +28,10 @@ public final class ContentPackLoader {
             throw new IOException("Content pack root is not a directory: " + normalizedRoot);
         }
 
-        Path manifestPath = normalizedRoot.resolve(MANIFEST_FILE);
+        Path manifestPath = normalizedRoot.resolve(MANIFEST_FILE).normalize();
+        if (!manifestPath.startsWith(normalizedRoot)) {
+            throw new IOException("Content pack manifest escapes pack root: " + manifestPath);
+        }
         if (!Files.isRegularFile(manifestPath)) {
             throw new IOException("Missing content pack manifest: " + manifestPath);
         }

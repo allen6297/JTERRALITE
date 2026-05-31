@@ -1,0 +1,19 @@
+{
+  "name": "Plains",
+  "priority": 10,
+  "rarity": 1.0,
+  "climate": {
+    "temperature": { "min": 0.35, "max": 0.85 },
+    "humidity": { "min": 0.25, "max": 0.75 }
+  },
+  "terrain": {
+    "base_height": 48,
+    "height_variation": 8
+  },
+  "surface": {
+    "top": "terralite:natural/grass_block",
+    "middle": "terralite:natural/dirt",
+    "middle_depth": 3,
+    "base": "terralite:natural/stone"
+  }
+}

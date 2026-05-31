@@ -4,6 +4,7 @@ import com.terralite.content.scripting.StartupScriptGlobal;
 import com.terralite.core.registry.MutableRegistry;
 import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
+import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
 import com.terralite.game.tag.Tag;
 
@@ -15,6 +16,7 @@ public interface ScriptGlobalsFactory {
             MutableRegistry<Block> blocks,
             MutableRegistry<Item> items,
             MutableRegistry<Biome> biomes,
-            MutableRegistry<Tag> tags
+            MutableRegistry<Tag> tags,
+            MutableRegistry<CreativeCategory> creativeCategories
     );
 }

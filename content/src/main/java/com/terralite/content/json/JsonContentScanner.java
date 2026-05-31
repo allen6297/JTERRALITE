@@ -17,7 +17,7 @@ public final class JsonContentScanner {
 
         List<JsonContentFile> files = new ArrayList<>();
         for (JsonContentRoot root : JsonContentRoot.values()) {
-            scanRoot(pack.root(), root, files);
+            scanRoot(pack.root(), pack.manifest().id().namespace(), root, files);
         }
         files.sort(Comparator
                 .comparing((JsonContentFile file) -> file.root().directoryName())
@@ -26,8 +26,13 @@ public final class JsonContentScanner {
         return List.copyOf(files);
     }
 
-    private static void scanRoot(Path packRoot, JsonContentRoot root, List<JsonContentFile> files) throws IOException {
-        Path rootPath = packRoot.resolve(root.directoryName());
+    private static void scanRoot(Path packRoot, String namespace, JsonContentRoot root, List<JsonContentFile> files)
+            throws IOException {
+        Path normalizedPackRoot = packRoot.toAbsolutePath().normalize();
+        Path rootPath = normalizedPackRoot.resolve(root.directoryName()).normalize();
+        if (!rootPath.startsWith(normalizedPackRoot)) {
+            return;
+        }
         if (!Files.isDirectory(rootPath)) {
             return;
         }
@@ -35,7 +40,9 @@ public final class JsonContentScanner {
         try (var stream = Files.walk(rootPath)) {
             stream.filter(Files::isRegularFile)
                     .filter(JsonContentScanner::isJsonFile)
-                    .map(path -> toContentFile(rootPath, root, path))
+                    .map(path -> path.toAbsolutePath().normalize())
+                    .filter(path -> path.startsWith(rootPath))
+                    .map(path -> toContentFile(rootPath, namespace, root, path))
                     .flatMap(List::stream)
                     .forEach(files::add);
         }
@@ -46,15 +53,14 @@ public final class JsonContentScanner {
         return fileName != null && fileName.toString().endsWith(".json");
     }
 
-    private static List<JsonContentFile> toContentFile(Path rootPath, JsonContentRoot root, Path path) {
+    private static List<JsonContentFile> toContentFile(Path rootPath, String namespace, JsonContentRoot root, Path path) {
         Path relative = rootPath.relativize(path);
-        if (relative.getNameCount() < 3) {
+        if (relative.getNameCount() < 2) {
             return List.of();
         }
 
-        String namespace = relative.getName(0).toString();
-        String type = relative.getName(1).toString();
-        String idPath = stripJsonExtension(relative.subpath(2, relative.getNameCount()).toString().replace('\\', '/'));
+        String type = relative.getName(0).toString();
+        String idPath = stripJsonExtension(relative.subpath(1, relative.getNameCount()).toString().replace('\\', '/'));
 
         return List.of(new JsonContentFile(root, type, ResourceId.of(namespace, idPath), path));
     }

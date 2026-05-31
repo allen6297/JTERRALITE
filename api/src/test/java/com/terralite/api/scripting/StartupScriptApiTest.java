@@ -2,9 +2,11 @@ package com.terralite.api.scripting;
 
 import com.terralite.content.pack.ContentPack;
 import com.terralite.content.pack.ContentPackLoader;
+import com.terralite.core.registry.ResourceId;
 import com.terralite.core.registry.ResourceKey;
 import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
+import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.content.GameContentLoadReport;
 import com.terralite.game.content.GameContentLoader;
 import com.terralite.game.item.Item;
@@ -36,17 +38,46 @@ class StartupScriptApiTest {
                     .solid(true)
                     .material('rock')
                     .hardness(1.5)
-                    .resistance(6.0);
+                    .resistance(6.0)
+                    .category('base:building_blocks')
+                    .tag('base:natural_blocks');
                 });
+                StartupEvents.registry('item', function(event) {
+                  event.create('base:granite_chip')
+                    .displayName('Granite Chip')
+                    .category('base:materials')
+                    .tag('base:materials_tag');
+                });
+                """);
+        writeCategoryJson(pack, "building_blocks", """
+                {
+                  "title": "Building Blocks",
+                  "icon": "base:granite",
+                  "entries": ["base:granite"]
+                }
+                """);
+        writeCategoryJson(pack, "materials", """
+                {
+                  "title": "Materials",
+                  "icon": "base:granite_chip",
+                  "entries": ["base:granite_chip"]
+                }
                 """);
 
         GameContentLoadReport report = load(List.of(pack));
 
         Block granite = report.gameData().get(ResourceKey.of(TerraliteRegistries.BLOCKS, "base:granite"));
+        Item graniteChip = report.gameData().get(ResourceKey.of(TerraliteRegistries.ITEMS, "base:granite_chip"));
+        var naturalBlocks = report.gameData().get(ResourceKey.of(TerraliteRegistries.TAGS, "base:natural_blocks"));
+        var materialsTag = report.gameData().get(ResourceKey.of(TerraliteRegistries.TAGS, "base:materials_tag"));
         assertEquals("Granite", granite.properties().displayName());
         assertEquals(1.5f, granite.properties().hardness());
         assertEquals(6.0f, granite.properties().resistance());
         assertEquals("rock", granite.properties().material());
+        assertEquals(List.of(ResourceId.id("base:building_blocks")), granite.properties().categories());
+        assertEquals(List.of(ResourceId.id("base:materials")), graniteChip.properties().categories());
+        assertEquals(List.of(ResourceId.id("base:granite")), naturalBlocks.members());
+        assertEquals(List.of(ResourceId.id("base:granite_chip")), materialsTag.members());
     }
 
     @Test
@@ -170,6 +201,56 @@ class StartupScriptApiTest {
     }
 
     @Test
+    void startupScriptCanRegisterCreativeCategory() throws Exception {
+        ContentPack pack = writePack("base", """
+                StartupEvents.registry('item', function(event) {
+                  event.create('base:stone_probe')
+                    .displayName('Stone Probe')
+                    .category('base:tools');
+                });
+                StartupEvents.registry('creative_category', function(event) {
+                  event.create('base:tools')
+                    .title('Tools')
+                    .icon('base:stone_probe')
+                    .entry('base:stone_probe');
+                });
+                """);
+
+        GameContentLoadReport report = load(List.of(pack));
+
+        Item probe = report.gameData().get(ResourceKey.of(TerraliteRegistries.ITEMS, "base:stone_probe"));
+        CreativeCategory tools =
+                report.gameData().get(ResourceKey.of(TerraliteRegistries.CREATIVE_CATEGORIES, "base:tools"));
+        assertEquals(List.of(ResourceId.id("base:tools")), probe.properties().categories());
+        assertEquals("Tools", tools.title());
+        assertEquals(ResourceId.id("base:stone_probe"), tools.icon());
+        assertEquals(List.of(ResourceId.id("base:stone_probe")), tools.entries());
+    }
+
+    @Test
+    void startupScriptCanAppendExistingTag() throws Exception {
+        ContentPack pack = writePack("base", """
+                StartupEvents.registry('tag', function(event) {
+                  event.create('base:natural_blocks')
+                    .description('Natural blocks')
+                    .member('base:granite');
+                });
+                StartupEvents.registry('block', function(event) {
+                  event.create('base:granite')
+                    .displayName('Granite');
+                  event.create('base:dirt')
+                    .displayName('Dirt')
+                    .tag('base:natural_blocks');
+                });
+                """);
+
+        GameContentLoadReport report = load(List.of(pack));
+
+        var tag = report.gameData().get(ResourceKey.of(TerraliteRegistries.TAGS, "base:natural_blocks"));
+        assertEquals(List.of(ResourceId.id("base:granite"), ResourceId.id("base:dirt")), tag.members());
+    }
+
+    @Test
     void blockScriptBuilderStubMethodsAreChainable() throws Exception {
         ContentPack pack = writePack("base", """
                 StartupEvents.registry('block', function(event) {
@@ -205,7 +286,13 @@ class StartupScriptApiTest {
     }
 
     private void writeBlockJson(ContentPack pack, String name, String json) throws Exception {
-        Path dataDir = pack.root().resolve("data").resolve(pack.manifest().id().namespace()).resolve("blocks");
+        Path dataDir = pack.root().resolve("data").resolve("blocks");
+        Files.createDirectories(dataDir);
+        Files.writeString(dataDir.resolve(name + ".json"), json);
+    }
+
+    private void writeCategoryJson(ContentPack pack, String name, String json) throws Exception {
+        Path dataDir = pack.root().resolve("data").resolve("creative_categories");
         Files.createDirectories(dataDir);
         Files.writeString(dataDir.resolve(name + ".json"), json);
     }

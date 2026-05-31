@@ -1,0 +1,8 @@
+{
+  "description": "Natural terrain blocks included with the base pack",
+  "members": [
+    "terralite:natural/stone",
+    "terralite:natural/dirt",
+    "terralite:natural/grass_block"
+  ]
+}

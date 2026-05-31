@@ -10,8 +10,10 @@ import com.terralite.core.registry.MutableRegistry;
 import com.terralite.core.registry.RegistryManager;
 import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
+import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
 import com.terralite.game.registry.TerraliteRegistries;
+import com.terralite.game.scripting.GameStartupScriptGlobals;
 import com.terralite.game.tag.Tag;
 
 import java.io.IOException;
@@ -52,11 +54,11 @@ public final class GameContentLoader {
 
     public GameContentLoadReport load(Path packsRoot) throws IOException {
         Objects.requireNonNull(packsRoot, "packsRoot");
-        return load(discovery.discover(packsRoot), (b, i, bio, t) -> List.of());
+        return load(discovery.discover(packsRoot), GameStartupScriptGlobals::create);
     }
 
     public GameContentLoadReport load(List<ContentPack> packs) throws IOException {
-        return load(packs, (b, i, bio, t) -> List.of());
+        return load(packs, GameStartupScriptGlobals::create);
     }
 
     public GameContentLoadReport load(List<ContentPack> packs, ScriptGlobalsFactory globalsFactory) throws IOException {
@@ -69,12 +71,20 @@ public final class GameContentLoader {
         MutableRegistry<Item> itemRegistry = registries.create(TerraliteRegistries.ITEMS);
         MutableRegistry<Biome> biomeRegistry = registries.create(TerraliteRegistries.BIOMES);
         MutableRegistry<Tag> tagRegistry = registries.create(TerraliteRegistries.TAGS);
-        registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
+        registries.create(TerraliteRegistries.WORLDSGEN_SPAWN_AREAS);
+        MutableRegistry<CreativeCategory> creativeCategoryRegistry =
+                registries.create(TerraliteRegistries.CREATIVE_CATEGORIES);
 
         GameContentLoadResult loadResult = applier.apply(orderedPacks, registries);
         ScriptExecutionReport startupScripts = startupScriptRunner.run(
                 orderedPacks,
-                globalsFactory.create(blockRegistry, itemRegistry, biomeRegistry, tagRegistry)
+                globalsFactory.create(
+                        blockRegistry,
+                        itemRegistry,
+                        biomeRegistry,
+                        tagRegistry,
+                        creativeCategoryRegistry
+                )
         );
         GameData gameData = registries.freeze();
         validator.validate(gameData).requireValid();

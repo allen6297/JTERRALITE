@@ -25,7 +25,11 @@ public final class ScriptContentScanner {
     }
 
     private static void scanScope(Path packRoot, ScriptScope scope, List<ScriptContentFile> files) throws IOException {
-        Path scopePath = packRoot.resolve("scripts").resolve(scope.directoryName());
+        Path normalizedPackRoot = packRoot.toAbsolutePath().normalize();
+        Path scopePath = normalizedPackRoot.resolve("scripts").resolve(scope.directoryName()).normalize();
+        if (!scopePath.startsWith(normalizedPackRoot)) {
+            return;
+        }
         if (!Files.isDirectory(scopePath)) {
             return;
         }
@@ -33,6 +37,8 @@ public final class ScriptContentScanner {
         try (var stream = Files.walk(scopePath)) {
             stream.filter(Files::isRegularFile)
                     .filter(ScriptContentScanner::isScriptFile)
+                    .map(path -> path.toAbsolutePath().normalize())
+                    .filter(path -> path.startsWith(scopePath))
                     .map(path -> new ScriptContentFile(scope, path))
                     .forEach(files::add);
         }

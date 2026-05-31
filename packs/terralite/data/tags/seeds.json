@@ -1,0 +1,4 @@
+{
+  "description": "Seed items included with the base pack",
+  "members": ["terralite:seeds/wheat_seeds"]
+}

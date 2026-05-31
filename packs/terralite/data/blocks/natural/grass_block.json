@@ -1,0 +1,15 @@
+{
+  "display_name": "Grass Block",
+  "hardness": 0.6,
+  "resistance": 0.6,
+  "solid": true,
+  "material": "dirt",
+  "sound_type": "grass",
+  "model": "terralite:block/cube_column",
+  "textures": {
+    "top": "terralite:block/grass_block_top",
+    "bottom": "terralite:block/dirt",
+    "side": "terralite:block/grass_block_side"
+  },
+  "categories": ["terralite:building_blocks"]
+}

@@ -1,0 +1,7 @@
+{
+  "display_name": "Wheat Seeds",
+  "weight": 0.05,
+  "stack_size": 64,
+  "places_block": "terralite:crops/wheat",
+  "categories": ["terralite:natural_items"]
+}

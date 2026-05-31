@@ -1,5 +1,8 @@
 package com.terralite.runtime.render;
 
+import com.terralite.core.registry.GameData;
+import com.terralite.content.assets.model.ContentModelMesh;
+import com.terralite.core.registry.ResourceId;
 import com.terralite.engine.camera.Camera;
 import com.terralite.engine.chunk.ChunkPos;
 import com.terralite.engine.entity.Entity;
@@ -12,6 +15,7 @@ import com.terralite.render.RenderObject;
 import com.terralite.render.RenderScene;
 
 import java.util.Comparator;
+import java.util.Map;
 import java.util.Objects;
 
 public final class RenderSceneExtractor {
@@ -19,8 +23,26 @@ public final class RenderSceneExtractor {
     }
 
     public static RenderScene from(World world, Camera camera) {
+        return from(world, camera, new ChunkMeshBuilder());
+    }
+
+    public static RenderScene from(World world, Camera camera, GameData gameData) {
+        return from(world, camera, new ChunkMeshBuilder(gameData));
+    }
+
+    public static RenderScene from(
+            World world,
+            Camera camera,
+            GameData gameData,
+            Map<ResourceId, ContentModelMesh> modelMeshes
+    ) {
+        return from(world, camera, new ChunkMeshBuilder(gameData, modelMeshes));
+    }
+
+    private static RenderScene from(World world, Camera camera, ChunkMeshBuilder chunkMeshBuilder) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(camera, "camera");
+        Objects.requireNonNull(chunkMeshBuilder, "chunkMeshBuilder");
 
         RenderScene.Builder scene = RenderScene.builder()
                 .camera(toRenderCamera(camera));
@@ -29,9 +51,12 @@ public final class RenderSceneExtractor {
                 .sorted(Comparator
                         .comparingInt(ChunkPos::x)
                         .thenComparingInt(ChunkPos::y)
-                        .thenComparingInt(ChunkPos::z))
+                .thenComparingInt(ChunkPos::z))
                 .map(pos -> new RenderChunk(pos.x(), pos.y(), pos.z()))
-                .forEach(scene::addChunk);
+                .forEach(chunk -> {
+                    scene.addChunk(chunk);
+                    chunkMeshBuilder.build(world, chunk).ifPresent(scene::addChunkMesh);
+                });
 
         world.entities().entities().stream()
                 .sorted(Comparator.comparingLong(entity -> entity.id().value()))

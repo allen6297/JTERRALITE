@@ -1,12 +1,18 @@
 package com.terralite.render;
 
+import com.terralite.render.texture.TextureAtlas;
+
 import java.util.Objects;
 
-public record RenderFrame(Viewport viewport, ClearColor clearColor, RenderScene scene) {
+public record RenderFrame(Viewport viewport, ClearColor clearColor, RenderScene scene, TextureAtlas textureAtlas) {
     public RenderFrame {
         Objects.requireNonNull(viewport, "viewport");
         Objects.requireNonNull(clearColor, "clearColor");
         Objects.requireNonNull(scene, "scene");
+    }
+
+    public RenderFrame(Viewport viewport, ClearColor clearColor, RenderScene scene) {
+        this(viewport, clearColor, scene, null);
     }
 
     public RenderFrame(Viewport viewport, ClearColor clearColor) {

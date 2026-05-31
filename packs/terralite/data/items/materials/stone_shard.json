@@ -1,0 +1,6 @@
+{
+  "display_name": "Stone Shard",
+  "weight": 0.2,
+  "stack_size": 64,
+  "categories": ["terralite:natural_items"]
+}

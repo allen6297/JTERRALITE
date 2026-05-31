@@ -18,6 +18,8 @@ import com.terralite.game.item.json.ItemJsonLoader;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.tag.Tag;
 import com.terralite.game.tag.json.TagJsonLoader;
+import com.terralite.game.worldsgen.WorldsgenSpawnArea;
+import com.terralite.game.worldsgen.json.WorldsgenSpawnAreaJsonLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -80,6 +82,7 @@ public final class GameContentPackApplier {
         BiomeJsonLoader biomeLoader = new BiomeJsonLoader();
         CreativeCategoryJsonLoader categoryLoader = new CreativeCategoryJsonLoader();
         TagJsonLoader tagLoader = new TagJsonLoader();
+        WorldsgenSpawnAreaJsonLoader spawnAreaLoader = new WorldsgenSpawnAreaJsonLoader();
 
         loaders.put("blocks", (file, registries) -> {
             MutableRegistry<Block> blocks = requireOrCreate(registries, TerraliteRegistries.BLOCKS);
@@ -110,6 +113,13 @@ public final class GameContentPackApplier {
             MutableRegistry<Tag> tags = requireOrCreate(registries, TerraliteRegistries.TAGS);
             try (InputStream input = Files.newInputStream(file.path())) {
                 tagLoader.register(file.id(), input, tags);
+            }
+        });
+        loaders.put("worldsgen", (file, registries) -> {
+            MutableRegistry<WorldsgenSpawnArea> spawnAreas =
+                    requireOrCreate(registries, TerraliteRegistries.WORLDSGEN_SPAWN_AREAS);
+            try (InputStream input = Files.newInputStream(file.path())) {
+                spawnAreaLoader.register(file.id(), input, spawnAreas);
             }
         });
 

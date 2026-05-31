@@ -1,0 +1,9 @@
+{
+  "title": "Building Blocks",
+  "icon": "terralite:natural/stone",
+  "entries": [
+    "terralite:natural/stone",
+    "terralite:natural/dirt",
+    "terralite:natural/grass_block"
+  ]
+}

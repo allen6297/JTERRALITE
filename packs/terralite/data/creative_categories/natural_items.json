@@ -1,0 +1,9 @@
+{
+  "title": "Natural Items",
+  "icon": "terralite:materials/stone_shard",
+  "entries": [
+    "terralite:materials/stone_shard",
+    "terralite:seeds/wheat_seeds",
+    "terralite:crops/wheat"
+  ]
+}

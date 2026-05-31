@@ -25,6 +25,8 @@ public record Block(BlockProperties properties) {
         private boolean requiresTool;
         private String material = "stone";
         private String soundType = "stone";
+        private BlockTextures textures;
+        private BlockModel model = BlockModel.CUBE_ALL;
         private final List<ResourceId> categories = new ArrayList<>();
 
         private Builder() {}
@@ -69,6 +71,20 @@ public record Block(BlockProperties properties) {
             return this;
         }
 
+        public Builder textures(BlockTextures textures) {
+            this.textures = Objects.requireNonNull(textures, "textures");
+            return this;
+        }
+
+        public Builder model(BlockModel model) {
+            this.model = Objects.requireNonNull(model, "model");
+            return this;
+        }
+
+        public Builder model(String model) {
+            return model(BlockModel.of(model));
+        }
+
         public Builder category(ResourceId category) {
             categories.add(Objects.requireNonNull(category, "category"));
             return this;
@@ -94,7 +110,9 @@ public record Block(BlockProperties properties) {
                 requiresTool,
                 material,
                 soundType,
-                List.copyOf(categories)
+                List.copyOf(categories),
+                textures,
+                model
             ));
         }
     }

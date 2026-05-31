@@ -19,8 +19,8 @@ class JsonContentScannerTest {
     @Test
     void scansDataAndAssetJsonFiles() throws Exception {
         Path packRoot = tempDir.resolve("base");
-        Files.createDirectories(packRoot.resolve("data/terralite/blocks/natural"));
-        Files.createDirectories(packRoot.resolve("assets/terralite/lang"));
+        Files.createDirectories(packRoot.resolve("data/blocks/natural"));
+        Files.createDirectories(packRoot.resolve("assets/lang"));
         Files.writeString(packRoot.resolve("pack.json"), """
             {
               "id": "terralite:base",
@@ -28,9 +28,9 @@ class JsonContentScannerTest {
               "version": "1.0.0"
             }
             """);
-        Files.writeString(packRoot.resolve("data/terralite/blocks/natural/stone.json"), "{}");
-        Files.writeString(packRoot.resolve("assets/terralite/lang/en_us.json"), "{}");
-        Files.writeString(packRoot.resolve("data/terralite/blocks/readme.txt"), "ignored");
+        Files.writeString(packRoot.resolve("data/blocks/natural/stone.json"), "{}");
+        Files.writeString(packRoot.resolve("assets/lang/en_us.json"), "{}");
+        Files.writeString(packRoot.resolve("data/blocks/readme.txt"), "ignored");
 
         ContentPack pack = new ContentPackLoader().load(packRoot);
         List<JsonContentFile> files = new JsonContentScanner().scan(pack);
@@ -40,13 +40,13 @@ class JsonContentScannerTest {
                 JsonContentRoot.ASSETS,
                 "lang",
                 ResourceId.id("terralite:en_us"),
-                packRoot.resolve("assets/terralite/lang/en_us.json")
+                packRoot.resolve("assets/lang/en_us.json")
         ), files.get(0));
         assertEquals(new JsonContentFile(
                 JsonContentRoot.DATA,
                 "blocks",
                 ResourceId.id("terralite:natural/stone"),
-                packRoot.resolve("data/terralite/blocks/natural/stone.json")
+                packRoot.resolve("data/blocks/natural/stone.json")
         ), files.get(1));
     }
 }

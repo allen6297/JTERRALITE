@@ -44,6 +44,7 @@ Current game registries:
 - `terralite:items`
 - `terralite:biomes`
 - `terralite:tags`
+- `terralite:worldsgen_spawn_areas`
 - `terralite:creative_categories`
 
 ## Content Patterns
@@ -54,6 +55,8 @@ Blocks, items, biomes, and tags are immutable records with builder APIs.
 - Items: `game.item.Item`, `ItemProperties`, and `item.json.ItemJsonLoader`.
 - Biomes: `game.biome.Biome`, `BiomeProperties`, and `biome.json.BiomeJsonLoader`.
 - Tags: `game.tag.Tag`, and `tag.json.TagJsonLoader`.
+- Worldsgen spawn areas: `game.worldsgen.WorldsgenSpawnArea` and
+  `worldsgen.json.WorldsgenSpawnAreaJsonLoader`.
 - Creative categories: `game.category.CreativeCategory`,
   `CreativeCategories`, and `category.json.CreativeCategoryJsonLoader`.
 
@@ -82,13 +85,15 @@ Category membership is stored on block and item properties as
 Content packs live as directories with a `pack.json` manifest at the root.
 JSON discovery scans:
 
-- `data/<namespace>/<type>/<path>.json`
-- `assets/<namespace>/<type>/<path>.json`
+- `data/<type>/<path>.json`
+- `assets/<type>/<path>.json`
 
-For those paths, `<namespace>:<path>` becomes the resource id and `<type>`
-becomes the content file type. For example,
-`data/terralite/blocks/natural/stone.json` maps to type `blocks` and id
-`terralite:natural/stone`.
+For those paths, the pack manifest namespace plus `<path>` becomes the
+resource id and `<type>` becomes the content file type. For example, in a pack
+whose manifest id namespace is `terralite`,
+`data/blocks/natural/stone.json` maps to type `blocks` and id
+`terralite:natural/stone`. The pack and namespace are treated as the same
+boundary; do not add an extra namespace directory under `data` or `assets`.
 
 Core pack/content classes:
 
@@ -104,6 +109,8 @@ It scans content packs and routes data files by type:
 - `items` -> `ItemJsonLoader` -> `terralite:items`
 - `biomes` -> `BiomeJsonLoader` -> `terralite:biomes`
 - `tags` -> `TagJsonLoader` -> `terralite:tags`
+- `worldsgen` -> `WorldsgenSpawnAreaJsonLoader` ->
+  `terralite:worldsgen_spawn_areas`
 - `creative_categories` -> `CreativeCategoryJsonLoader` ->
   `terralite:creative_categories`
 
@@ -137,21 +144,28 @@ Suggested pack layout:
 ```text
 packs/example/
   pack.json
-  data/example/blocks/
-  data/example/items/
-  data/example/biomes/
-  data/example/tags/
-  data/example/recipes/
-  data/example/worldgen/
-  assets/example/textures/
-  assets/example/models/
-  assets/example/sounds/
-  assets/example/shaders/
-  assets/example/lang/
+  data/blocks/
+  data/items/
+  data/biomes/
+  data/tags/
+  data/recipes/
+  data/worldsgen/
+  assets/textures/
+  assets/models/
+  assets/sounds/
+  assets/shaders/
+  assets/lang/
   scripts/startup/
   scripts/server/
   scripts/client/
 ```
+
+The repo now includes a real base content pack at `packs/terralite`.
+It is discoverable through `GameContentLoader.load(Path.of("packs"))` and
+currently provides JSON-backed blocks, items, creative categories, a biome,
+and tags under `data/...`. It also includes a startup script that
+registers an item through `StartupEvents` and modifies a JSON-loaded block
+through `Registry`.
 
 Script scope rules from the design doc:
 
@@ -169,7 +183,7 @@ Two globals are exposed: `StartupEvents` and `Registry`.
 ### StartupEvents.registry
 
 The primary way to register content in a startup script. Supports types
-`block`, `item`, `biome`, and `tag`.
+`block`, `item`, `biome`, `tag`, and `creative_category`.
 
 ```js
 StartupEvents.registry('block', function(event) {
@@ -178,14 +192,18 @@ StartupEvents.registry('block', function(event) {
     .solid(true)
     .material('rock')
     .hardness(1.5)
-    .resistance(6.0);
+    .resistance(6.0)
+    .category('base:building_blocks')
+    .tag('base:natural_blocks');
 });
 
 StartupEvents.registry('item', function(event) {
   event.create('base:wheat_seeds')
     .displayName('Wheat Seeds')
     .stackSize(99)
-    .placesBlock('base:wheat');
+    .placesBlock('base:wheat')
+    .category('base:natural_items')
+    .tag('base:seeds');
 });
 
 StartupEvents.registry('biome', function(event) {
@@ -208,6 +226,13 @@ StartupEvents.registry('tag', function(event) {
     .member('base:wheat')
     .member('base:carrot');
 });
+
+StartupEvents.registry('creative_category', function(event) {
+  event.create('base:natural_items')
+    .title('Natural Items')
+    .icon('base:wheat_seeds')
+    .entry('base:wheat_seeds');
+});
 ```
 
 ### Registry
@@ -227,11 +252,38 @@ Registry.modifyBlock('base:copper_ore', function(block) {
 
 Script diagnostics are recorded in `GameContentLoadReport.startupScripts()`.
 
-The startup script API lives in `game.scripting`:
+See `examples/api-implementation` for copyable startup script examples that
+register blocks, items, biomes, tags, and modify a block before registries
+freeze.
+
+`GameContentLoader.load(Path)` and `GameContentLoader.load(List<ContentPack>)`
+wire these game startup globals by default. Use the overload that accepts a
+`ScriptGlobalsFactory` only when a test or tool needs custom globals.
+
+Generate TypeScript editor declarations for pack scripts with:
+
+```powershell
+.\gradlew.bat :tools:generateTypeScriptApi
+```
+
+The generated file is written to
+`types/terralite-scripting.d.ts`.
+The `:tools:checkTypeScriptApi` task verifies the checked-in declaration file
+matches the generator output and is wired into `:tools:check`.
+
+`packs/terralite/jsconfig.json` points at that declaration file so editors
+can provide autocomplete and inline checking for pack scripts.
+
+The startup script API implementation lives in `game.scripting`:
 - `StartupEventsScriptApi` — `registry(type, fn)`
-- `BlockScriptBuilder`, `ItemScriptBuilder`, `BiomeScriptBuilder`, `TagScriptBuilder` — chainable builders
+- `BlockScriptBuilder`, `ItemScriptBuilder`, `BiomeScriptBuilder`,
+  `TagScriptBuilder`, `CreativeCategoryScriptBuilder` — chainable builders
 - `RegistryScriptApi` — `getBlock`, `getItem`, `getBiome`, `modifyBlock`
 - `GameStartupScriptGlobals` — wires the above into `StartupScriptRunner`
+
+The `api` module exposes `api.scripting.GameStartupScriptGlobals` as a thin
+public facade that delegates to the game implementation. Keep game-specific
+script behavior in `game.scripting` so there is only one implementation path.
 
 The `content` module exposes `StartupScriptGlobal` as a bridge so `game`-specific
 globals can be injected into the script runtime without creating a dependency from
@@ -257,6 +309,9 @@ receive `index`, `deltaMillis`, and `totalMillis`. `api.world()` is a read-only
 view for entities and a controlled chunk API with `entityCount()`,
 `chunkCount()`, `hasChunk(x, y, z)`, `loadChunk(x, y, z)`, and
 `unloadChunk(x, y, z)`.
+
+See `examples/api-implementation/scripts/server/main.js` for a server script
+that loads chunks, logs world counts, and unloads a chunk later.
 
 ## Server Runtime
 
@@ -327,6 +382,17 @@ Vulkan smoke test (5 s by default; pass duration in seconds as argument):
 The smoke test opens a 1280×720 window, submits a 3×3 chunk grid, and slowly
 rotates camera yaw so the MVP transform is visible.
 
+Content/render smoke test:
+
+```powershell
+.\gradlew.bat :tools:runContentRenderSmoke
+.\gradlew.bat :tools:runContentRenderSmoke --args="packs 10"
+```
+
+This loads `packs/terralite`, creates a small runtime `World` with loaded
+engine chunks from `data/worldsgen/spawn_area.json`, extracts a render scene
+through `RenderPipeline`, and submits it to the Vulkan debug backend.
+
 ### Runtime render integration
 
 `runtime.render.RenderSceneExtractor` adapts engine state into render-owned
@@ -339,6 +405,11 @@ scene data:
 `runtime.render.RenderPipeline` composes the extractor with a `Renderer` so
 runtime code can render one frame from the current `World`, `Camera`,
 `Viewport`, and `ClearColor`.
+
+`runtime.world.RuntimeWorldFactory` creates the initial engine `World` from
+loaded `GameData`. It currently reads `terralite:spawn_area` from the
+`terralite:worldsgen_spawn_areas` registry and loads the configured starting
+chunks, falling back to the default 3x3 spawn area when the entry is missing.
 
 ### Engine camera
 
