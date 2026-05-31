@@ -160,6 +160,62 @@ packs/example/
   scripts/client/
 ```
 
+### Block Model Assets
+
+Block models live under `assets/models/` and are referenced from block JSON with
+resource ids such as `terralite:block/cube_all`. The current render mesh loader
+supports three Terralite JSON model types:
+
+```json
+{ "type": "cube_all" }
+```
+
+Uses the block's `textures.all` entry for every face. If a block only defines
+face-specific textures, the runtime falls back to the same texture choice used
+for the top face.
+
+```json
+{ "type": "cube_column" }
+```
+
+Uses `textures.top` for the up face, `textures.bottom` for the down face, and
+`textures.side` for horizontal faces, with the normal block texture fallbacks.
+
+```json
+{ "type": "cross" }
+```
+
+Renders two double-sided crossed quads using `textures.all`. This is intended
+for plant-like blocks such as wheat.
+
+Unknown or missing Terralite JSON model types fail during model mesh loading
+with a message that includes the model id and file path.
+
+Pack startup also validates block model and texture references against the
+loaded asset index when a block defines textures. A block that references a
+missing model emits `block.model.missing`; missing texture assets emit
+`block.texture.missing`.
+
+## Render Smoke Checks
+
+Two manual render checks are available from the repo root:
+
+```bash
+./gradlew :tools:runVulkanSmoke
+```
+
+This opens a GLFW/Vulkan window with a debug 3x3 chunk marker grid. A good
+result is a visible window with colored markers and no Vulkan setup exception.
+
+```bash
+./gradlew :tools:runContentRenderSmoke
+```
+
+This loads `packs/terralite`, builds runtime chunks, loads texture/model assets,
+and renders the real content through the Vulkan backend for about five seconds.
+A good result shows a small terrain surface using the base pack textures and
+models, including column-style grass blocks and cross-style wheat when visible.
+
 The repo now includes a real base content pack at `packs/terralite`.
 It is discoverable through `GameContentLoader.load(Path.of("packs"))` and
 currently provides JSON-backed blocks, items, creative categories, a biome,
