@@ -54,6 +54,28 @@ val checkTypeScriptApi by tasks.registering(JavaExec::class) {
     )
 }
 
+tasks.register<JavaExec>("generateScriptingApiDocs") {
+    group = "generation"
+    description = "Generates Markdown documentation for Terralite content scripts."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.terralite.tools.scripting.ScriptApiMarkdownGenerator")
+    systemProperty("terralite.codegen.root", rootProject.layout.projectDirectory.asFile.absolutePath)
+    args(rootProject.layout.projectDirectory.file("docs/scripting-api.md").asFile.absolutePath)
+}
+
+val checkScriptingApiDocs by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks that checked-in scripting API docs match the generator output."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.terralite.tools.scripting.ScriptApiMarkdownGenerator")
+    systemProperty("terralite.codegen.root", rootProject.layout.projectDirectory.asFile.absolutePath)
+    args(
+        "--check",
+        rootProject.layout.projectDirectory.file("docs/scripting-api.md").asFile.absolutePath
+    )
+}
+
 tasks.named("check") {
     dependsOn(checkTypeScriptApi)
+    dependsOn(checkScriptingApiDocs)
 }
