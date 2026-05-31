@@ -1,3 +1,11 @@
+StartupEvents.registry('tag', function(event) {
+  event.create('example:natural_blocks')
+    .description('Natural blocks from the API implementation example')
+    .member('example:limestone')
+    .member('example:limestone_grass')
+    .member('example:limestone_soil');
+});
+
 StartupEvents.registry('block', function(event) {
   event.create('example:limestone')
     .displayName('Limestone')
@@ -42,6 +50,13 @@ StartupEvents.registry('item', function(event) {
 });
 
 StartupEvents.registry('creative_category', function(event) {
+  event.create('example:natural_blocks')
+    .title('Natural Blocks')
+    .icon('example:limestone')
+    .entry('example:limestone')
+    .entry('example:limestone_grass')
+    .entry('example:limestone_soil');
+
   event.create('example:natural_items')
     .title('Natural Items')
     .icon('example:limestone_shard')
@@ -61,14 +76,6 @@ StartupEvents.registry('biome', function(event) {
     .surfaceMiddle('example:limestone_soil')
     .surfaceMiddleDepth(3)
     .surfaceBase('example:limestone');
-});
-
-StartupEvents.registry('tag', function(event) {
-  event.create('example:natural_blocks')
-    .description('Natural blocks from the API implementation example')
-    .member('example:limestone')
-    .member('example:limestone_grass')
-    .member('example:limestone_soil');
 });
 
 Registry.modifyBlock('example:limestone', function(block) {

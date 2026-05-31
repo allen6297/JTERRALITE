@@ -63,8 +63,10 @@ public final class RegistryScriptApi {
         private boolean requiresTool;
         private String material;
         private String soundType;
+        private final BlockProperties originalProperties;
 
         BlockModifier(BlockProperties props) {
+            this.originalProperties = Objects.requireNonNull(props, "props");
             this.displayName = props.displayName();
             this.hardness = props.hardness();
             this.resistance = props.resistance();
@@ -93,7 +95,7 @@ public final class RegistryScriptApi {
         public void setSoundType(String soundType) { this.soundType = soundType != null ? soundType : "stone"; }
 
         Block toBlock() {
-            return Block.builder()
+            Block.Builder builder = Block.builder()
                     .displayName(displayName)
                     .hardness(hardness)
                     .resistance(resistance)
@@ -102,7 +104,12 @@ public final class RegistryScriptApi {
                     .requiresTool(requiresTool)
                     .material(material)
                     .soundType(soundType)
-                    .build();
+                    .categories(originalProperties.categories())
+                    .model(originalProperties.model());
+            if (originalProperties.textures() != null) {
+                builder.textures(originalProperties.textures());
+            }
+            return builder.build();
         }
     }
 }

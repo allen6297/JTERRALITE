@@ -8,7 +8,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -139,6 +141,38 @@ class ServerScriptHostTest {
         assertEquals("unload=true", host.report().messages().get(1).message());
     }
 
+    @Test
+    void apiImplementationExampleServerScriptRunsAgainstWorldApi() throws Exception {
+        ContentPack pack = new ContentPackLoader().load(repoExamplesRoot().resolve("api-implementation"));
+        TrackingWorld world = new TrackingWorld();
+        ServerScriptHost host = new ServerScriptHost(new ScriptContentScanner(), world);
+
+        ScriptExecutionReport loadReport = host.load(List.of(pack));
+        host.tick(0, Duration.ofMillis(50), Duration.ZERO);
+        host.tick(20, Duration.ofMillis(50), Duration.ofMillis(1_000));
+        host.tick(100, Duration.ofMillis(50), Duration.ofMillis(5_000));
+
+        assertEquals(1, loadReport.executedScripts());
+        assertEquals(List.of(
+                "API implementation example server script loaded",
+                "Loaded starter chunks",
+                "tick=0 entities=3 chunks=2",
+                "tick=20 entities=3 chunks=2",
+                "tick=100 entities=3 chunks=2",
+                "Unloaded example chunk"
+        ), host.report().messages().stream().map(ScriptExecutionMessage::message).toList());
+        assertEquals(Set.of("0,0,0"), world.loadedChunks());
+    }
+
+    private static Path repoExamplesRoot() {
+        Path workingDirectory = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        Path direct = workingDirectory.resolve("examples");
+        if (Files.isDirectory(direct)) {
+            return direct;
+        }
+        return workingDirectory.resolve("../examples").normalize();
+    }
+
     private ContentPack writePack(String directory, String serverScript) throws Exception {
         Path packRoot = tempDir.resolve(directory);
         Files.createDirectories(packRoot.resolve("scripts/server"));
@@ -151,5 +185,42 @@ class ServerScriptHostTest {
             """.formatted(directory, directory));
         Files.writeString(packRoot.resolve("scripts/server/main.js"), serverScript);
         return new ContentPackLoader().load(packRoot);
+    }
+
+    private static final class TrackingWorld implements ServerWorldScriptApi {
+        private final Set<String> loadedChunks = new HashSet<>();
+
+        @Override
+        public int entityCount() {
+            return 3;
+        }
+
+        @Override
+        public int chunkCount() {
+            return loadedChunks.size();
+        }
+
+        @Override
+        public boolean hasChunk(int x, int y, int z) {
+            return loadedChunks.contains(key(x, y, z));
+        }
+
+        @Override
+        public boolean loadChunk(int x, int y, int z) {
+            return loadedChunks.add(key(x, y, z));
+        }
+
+        @Override
+        public boolean unloadChunk(int x, int y, int z) {
+            return loadedChunks.remove(key(x, y, z));
+        }
+
+        Set<String> loadedChunks() {
+            return Set.copyOf(loadedChunks);
+        }
+
+        private static String key(int x, int y, int z) {
+            return x + "," + y + "," + z;
+        }
     }
 }

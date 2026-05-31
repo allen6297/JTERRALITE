@@ -90,6 +90,37 @@ class GameContentLoaderTest {
         assertEquals(9, spawnArea.chunkPositions().size());
     }
 
+    @Test
+    void loadsApiImplementationExamplePack() throws Exception {
+        ContentPack example = new ContentPackLoader().load(repoExamplesRoot().resolve("api-implementation"));
+
+        GameContentLoadReport report = new GameContentLoader().load(List.of(example));
+
+        Block limestone = report.gameData().get(ResourceKey.of(TerraliteRegistries.BLOCKS, "example:limestone"));
+        Item shard = report.gameData().get(ResourceKey.of(TerraliteRegistries.ITEMS, "example:limestone_shard"));
+        Biome fields = report.gameData().get(ResourceKey.of(TerraliteRegistries.BIOMES, "example:limestone_fields"));
+        Tag naturalBlocks = report.gameData().get(ResourceKey.of(TerraliteRegistries.TAGS, "example:natural_blocks"));
+        CreativeCategory naturalItems =
+                report.gameData().get(ResourceKey.of(TerraliteRegistries.CREATIVE_CATEGORIES, "example:natural_items"));
+        CreativeCategory naturalBlocksCategory =
+                report.gameData().get(ResourceKey.of(TerraliteRegistries.CREATIVE_CATEGORIES, "example:natural_blocks"));
+
+        assertEquals(1, report.startupScripts().executedScripts());
+        assertEquals("Polished Limestone", limestone.properties().displayName());
+        assertEquals(1.5f, limestone.properties().hardness());
+        assertEquals(List.of(ResourceId.id("example:natural_blocks")), limestone.properties().categories());
+        assertEquals("Limestone Shard", shard.properties().displayName());
+        assertEquals(List.of(ResourceId.id("example:natural_items")), shard.properties().categories());
+        assertEquals("Limestone Fields", fields.properties().name());
+        assertEquals(List.of(
+                ResourceId.id("example:limestone"),
+                ResourceId.id("example:limestone_grass"),
+                ResourceId.id("example:limestone_soil")
+        ), naturalBlocks.members());
+        assertEquals(ResourceId.id("example:limestone_shard"), naturalItems.icon());
+        assertEquals(ResourceId.id("example:limestone"), naturalBlocksCategory.icon());
+    }
+
     private ContentPack writeBasePack() throws Exception {
         Path packRoot = tempDir.resolve("base");
         Files.createDirectories(packRoot.resolve("data/blocks"));
@@ -147,5 +178,14 @@ class GameContentLoaderTest {
             return direct;
         }
         return workingDirectory.resolve("../packs").normalize();
+    }
+
+    private static Path repoExamplesRoot() {
+        Path workingDirectory = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        Path direct = workingDirectory.resolve("examples");
+        if (Files.isDirectory(direct)) {
+            return direct;
+        }
+        return workingDirectory.resolve("../examples").normalize();
     }
 }
