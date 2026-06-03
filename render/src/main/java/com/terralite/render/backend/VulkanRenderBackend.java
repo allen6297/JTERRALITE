@@ -1,5 +1,11 @@
 package com.terralite.render.backend;
 
+import com.terralite.render.ChunkDraw;
+import com.terralite.render.ChunkRenderCache;
+import com.terralite.render.ChunkRenderEntry;
+import com.terralite.render.DeferredReleaseQueue;
+import com.terralite.render.MeshSignature;
+import com.terralite.render.PreparedRenderFrame;
 import com.terralite.render.RenderBackend;
 import com.terralite.render.RenderChunk;
 import com.terralite.render.RenderChunkMesh;
@@ -7,36 +13,67 @@ import com.terralite.render.RenderFrame;
 import com.terralite.render.RenderStats;
 import com.terralite.render.Viewport;
 import com.terralite.render.math.CameraMatrices;
+import com.terralite.render.math.FrustumCuller;
 import com.terralite.render.mesh.ChunkDebugMeshFactory;
+import com.terralite.render.texture.TextureAtlas;
 import com.terralite.render.vulkan.VulkanCommands;
 import com.terralite.render.vulkan.VulkanContext;
-import com.terralite.render.vulkan.VulkanMeshBuffer;
 import com.terralite.render.vulkan.VulkanPipeline;
 import com.terralite.render.vulkan.VulkanSwapchain;
 import com.terralite.render.vulkan.VulkanTextureAtlas;
 import com.terralite.render.vulkan.VulkanUtils;
-import com.terralite.render.texture.TextureAtlas;
 import com.terralite.render.window.RenderWindow;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.*;
 
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
-import java.nio.LongBuffer;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
-import static org.lwjgl.vulkan.KHRSwapchain.*;
-import static org.lwjgl.vulkan.VK10.*;
+import static org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR;
+import static org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR;
+import static org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR;
+import static org.lwjgl.vulkan.KHRSwapchain.vkQueuePresentKHR;
+import static org.lwjgl.vulkan.VK10.VK_NULL_HANDLE;
+import static org.lwjgl.vulkan.VK10.VK_PIPELINE_BIND_POINT_GRAPHICS;
+import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
+import static org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+import static org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+import static org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_SUBMIT_INFO;
+import static org.lwjgl.vulkan.VK10.VK_SUBPASS_CONTENTS_INLINE;
+import static org.lwjgl.vulkan.VK10.VK_SUCCESS;
+import static org.lwjgl.vulkan.VK10.vkCmdBeginRenderPass;
+import static org.lwjgl.vulkan.VK10.vkCmdBindDescriptorSets;
+import static org.lwjgl.vulkan.VK10.vkCmdBindPipeline;
+import static org.lwjgl.vulkan.VK10.vkCmdBindVertexBuffers;
+import static org.lwjgl.vulkan.VK10.vkCmdDraw;
+import static org.lwjgl.vulkan.VK10.vkCmdEndRenderPass;
+import static org.lwjgl.vulkan.VK10.vkCmdPushConstants;
+import static org.lwjgl.vulkan.VK10.vkCmdSetScissor;
+import static org.lwjgl.vulkan.VK10.vkCmdSetViewport;
+import static org.lwjgl.vulkan.VK10.vkDeviceWaitIdle;
+import static org.lwjgl.vulkan.VK10.vkEndCommandBuffer;
+import static org.lwjgl.vulkan.VK10.vkResetCommandBuffer;
+import static org.lwjgl.vulkan.VK10.vkResetFences;
+import static org.lwjgl.vulkan.VK10.vkWaitForFences;
+import static org.lwjgl.vulkan.VK10.vkQueueSubmit;
 
 /**
- * Vulkan-backed {@link RenderBackend}. Renders chunk debug markers using the
- * camera MVP push constant.
+ * Vulkan-backed {@link RenderBackend} with phased rendering:
+ * <ol>
+ *   <li>{@code prepareFrame}: camera, frustum, visibility</li>
+ *   <li>{@code syncResources}: create/upload/retire GPU resources</li>
+ *   <li>{@code recordAndSubmit}: pure GPU command recording and frame submission</li>
+ * </ol>
  */
 public final class VulkanRenderBackend implements RenderBackend {
+    private static final int CHUNK_SIZE = 16;
+    private static final int EVICTION_THRESHOLD = 120;
+
     private final RenderWindow window;
 
     private VulkanContext ctx;
@@ -45,7 +82,8 @@ public final class VulkanRenderBackend implements RenderBackend {
     private VulkanCommands commands;
     private TextureAtlas currentAtlas;
     private VulkanTextureAtlas textureAtlas;
-    private final Map<RenderChunk, ChunkBuffer> chunkBuffers = new HashMap<>();
+    private ChunkRenderCache chunkCache;
+    private DeferredReleaseQueue deferredRelease;
 
     private int currentFrame = 0;
     private long frameIndex = 0;
@@ -66,6 +104,8 @@ public final class VulkanRenderBackend implements RenderBackend {
         commands = VulkanCommands.create(ctx);
         currentAtlas = fallbackAtlas();
         textureAtlas = VulkanTextureAtlas.create(ctx, commands, pipeline.descriptorSetLayout, currentAtlas);
+        chunkCache = new ChunkRenderCache(EVICTION_THRESHOLD);
+        deferredRelease = new DeferredReleaseQueue();
     }
 
     @Override
@@ -73,7 +113,6 @@ public final class VulkanRenderBackend implements RenderBackend {
         window.show();
     }
 
-    /** Returns true if the underlying window has been asked to close. */
     public boolean shouldClose() {
         return window.shouldClose();
     }
@@ -83,10 +122,8 @@ public final class VulkanRenderBackend implements RenderBackend {
         Objects.requireNonNull(frame, "frame");
         ensureTextureAtlas(frame.textureAtlas());
 
-        // Poll events first so shouldClose() stays up to date
         window.pollEvents();
 
-        // Skip rendering while minimized (framebuffer is 0×0 on some platforms)
         Viewport currentVp = window.viewport();
         if (currentVp.width() <= 1 && currentVp.height() <= 1) {
             return new RenderStats(frameIndex, currentVp);
@@ -97,6 +134,114 @@ public final class VulkanRenderBackend implements RenderBackend {
             needsSwapchainRecreation = false;
         }
 
+        PreparedRenderFrame prepared = prepareFrame(frame);
+        syncResources(frame);
+        prepared = prepareFrame(frame);
+
+        return recordAndSubmit(prepared);
+    }
+
+    @Override
+    public void stop() {
+        vkDeviceWaitIdle(ctx.device);
+        chunkCache.destroyAll(ctx);
+        deferredRelease.destroyAll(ctx);
+        if (textureAtlas != null) {
+            textureAtlas.destroy(ctx);
+            textureAtlas = null;
+        }
+        commands.destroy(ctx);
+        pipeline.destroy(ctx);
+        swapchain.destroy(ctx);
+        ctx.destroy();
+        window.destroy();
+    }
+
+    private PreparedRenderFrame prepareFrame(RenderFrame frame) {
+        Viewport vp = new Viewport(swapchain.width, swapchain.height);
+        float[] mvp = CameraMatrices.viewProjection(frame.scene().camera(), vp);
+
+        FrustumCuller culler = new FrustumCuller();
+        culler.update(mvp);
+
+        List<ChunkDraw> visibleDraws = new ArrayList<>();
+        chunkCache.beginFrame(frameIndex);
+
+        List<RenderChunkMesh> chunkMeshes = frame.scene().chunkMeshes();
+        if (chunkMeshes.isEmpty()) {
+            for (RenderChunk chunk : frame.scene().chunks()) {
+                ChunkRenderEntry entry = chunkCache.get(chunk);
+                if (entry == null) {
+                    continue;
+                }
+                if (isChunkVisible(culler, chunk)) {
+                    entry.markSeen(frameIndex);
+                    entry.markVisible();
+                    visibleDraws.add(new ChunkDraw(entry.buffer().buffer, 0L, entry.vertexCount()));
+                }
+            }
+        } else {
+            for (RenderChunkMesh chunkMesh : chunkMeshes) {
+                RenderChunk chunk = chunkMesh.chunk();
+                ChunkRenderEntry entry = chunkCache.get(chunk);
+                MeshSignature sig = MeshSignature.from(chunkMesh);
+
+                if (entry == null || !entry.signature().equals(sig)) {
+                    continue;
+                }
+
+                if (isChunkVisible(culler, chunk)) {
+                    entry.markSeen(frameIndex);
+                    entry.markVisible();
+                    visibleDraws.add(new ChunkDraw(entry.buffer().buffer, 0L, entry.vertexCount()));
+                }
+            }
+        }
+
+        return new PreparedRenderFrame(vp, mvp, culler, visibleDraws, textureAtlas, frame.clearColor());
+    }
+
+    private boolean isChunkVisible(FrustumCuller culler, RenderChunk chunk) {
+        float minX = chunk.x() * CHUNK_SIZE;
+        float minY = chunk.y() * CHUNK_SIZE;
+        float minZ = chunk.z() * CHUNK_SIZE;
+        float maxX = minX + CHUNK_SIZE;
+        float maxY = minY + CHUNK_SIZE;
+        float maxZ = minZ + CHUNK_SIZE;
+        return culler.isVisible(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private void syncResources(RenderFrame frame) {
+        List<RenderChunkMesh> chunkMeshes = frame.scene().chunkMeshes();
+
+        if (chunkMeshes.isEmpty()) {
+            for (RenderChunk chunk : frame.scene().chunks()) {
+                ChunkRenderEntry entry = chunkCache.get(chunk);
+                if (entry == null) {
+                    chunkCache.create(ctx, chunk, MeshSignature.untracked(), ChunkDebugMeshFactory.create(chunk));
+                }
+            }
+        } else {
+            for (RenderChunkMesh chunkMesh : chunkMeshes) {
+                RenderChunk chunk = chunkMesh.chunk();
+                ChunkRenderEntry entry = chunkCache.get(chunk);
+                MeshSignature sig = MeshSignature.from(chunkMesh);
+
+                if (entry == null || !entry.signature().equals(sig)) {
+                    if (entry != null) {
+                        deferredRelease.enqueue(entry, frameIndex);
+                    }
+                    chunkCache.create(ctx, chunk, sig, chunkMesh.mesh());
+                }
+            }
+        }
+
+        long completedFrame = Math.max(0, frameIndex - VulkanCommands.FRAMES_IN_FLIGHT);
+        deferredRelease.flush(ctx, completedFrame);
+        chunkCache.evictStale(ctx, frameIndex);
+    }
+
+    private RenderStats recordAndSubmit(PreparedRenderFrame prepared) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             int frameIdx = currentFrame;
             long inFlightFence = commands.inFlightFences[frameIdx];
@@ -104,26 +249,33 @@ public final class VulkanRenderBackend implements RenderBackend {
             long renderFinished = commands.renderFinishedSemaphores[frameIdx];
             VkCommandBuffer cmd = commands.commandBuffers[frameIdx];
 
-            // Wait for this frame slot to be free
             vkWaitForFences(ctx.device, inFlightFence, true, Long.MAX_VALUE);
 
-            // Acquire next swapchain image
             IntBuffer imageIndexBuf = stack.mallocInt(1);
-            int acquireResult = vkAcquireNextImageKHR(ctx.device, swapchain.swapchain,
-                    Long.MAX_VALUE, imageAvailable, VK_NULL_HANDLE, imageIndexBuf);
+            int acquireResult = vkAcquireNextImageKHR(
+                    ctx.device,
+                    swapchain.swapchain,
+                    Long.MAX_VALUE,
+                    imageAvailable,
+                    VK_NULL_HANDLE,
+                    imageIndexBuf
+            );
+
             if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
                 needsSwapchainRecreation = true;
                 return new RenderStats(++frameIndex, window.viewport());
             }
+            if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) {
+                throw new IllegalStateException("Failed to acquire swapchain image: " + acquireResult);
+            }
+
             int imageIndex = imageIndexBuf.get(0);
 
             vkResetFences(ctx.device, inFlightFence);
             vkResetCommandBuffer(cmd, 0);
 
-            // Record commands
-            recordCommandBuffer(cmd, imageIndex, frame, stack);
+            recordCommandBuffer(cmd, imageIndex, prepared, stack);
 
-            // Submit
             VkSubmitInfo submitInfo = VkSubmitInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                     .waitSemaphoreCount(1)
@@ -132,12 +284,10 @@ public final class VulkanRenderBackend implements RenderBackend {
                     .pCommandBuffers(stack.pointers(cmd))
                     .pSignalSemaphores(stack.longs(renderFinished));
 
-            VulkanUtils.check(vkQueueSubmit(ctx.graphicsQueue, submitInfo, inFlightFence),
-                    "Failed to submit command buffer");
+            VulkanUtils.check(vkQueueSubmit(ctx.graphicsQueue, submitInfo, inFlightFence), "Failed to submit command buffer");
 
-            // Present
             VkPresentInfoKHR presentInfo = VkPresentInfoKHR.calloc(stack)
-                    .sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
+                    .sType(KHRSwapchain.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
                     .pWaitSemaphores(stack.longs(renderFinished))
                     .swapchainCount(1)
                     .pSwapchains(stack.longs(swapchain.swapchain))
@@ -153,34 +303,22 @@ public final class VulkanRenderBackend implements RenderBackend {
         }
     }
 
-    @Override
-    public void stop() {
-        vkDeviceWaitIdle(ctx.device);
-        destroyChunkBuffers();
-        if (textureAtlas != null) {
-            textureAtlas.destroy(ctx);
-            textureAtlas = null;
-        }
-        commands.destroy(ctx);
-        pipeline.destroy(ctx);
-        swapchain.destroy(ctx);
-        ctx.destroy();
-        window.destroy();
-    }
-
-    // ---- private helpers ----
-
-    private void recordCommandBuffer(VkCommandBuffer cmd, int imageIndex, RenderFrame frame, MemoryStack stack) {
+    private void recordCommandBuffer(
+            VkCommandBuffer cmd,
+            int imageIndex,
+            PreparedRenderFrame prepared,
+            MemoryStack stack
+    ) {
         VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
-        VulkanUtils.check(vkBeginCommandBuffer(cmd, beginInfo), "Failed to begin command buffer");
+        VulkanUtils.check(org.lwjgl.vulkan.VK10.vkBeginCommandBuffer(cmd, beginInfo), "Failed to begin command buffer");
 
         VkClearValue.Buffer clearValues = VkClearValue.calloc(2, stack);
         clearValues.get(0).color()
-                .float32(0, frame.clearColor().red())
-                .float32(1, frame.clearColor().green())
-                .float32(2, frame.clearColor().blue())
-                .float32(3, frame.clearColor().alpha());
+                .float32(0, prepared.clearColor().red())
+                .float32(1, prepared.clearColor().green())
+                .float32(2, prepared.clearColor().blue())
+                .float32(3, prepared.clearColor().alpha());
         clearValues.get(1).depthStencil().depth(1.0f).stencil(0);
 
         VkRenderPassBeginInfo renderPassInfo = VkRenderPassBeginInfo.calloc(stack)
@@ -198,15 +336,17 @@ public final class VulkanRenderBackend implements RenderBackend {
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 pipeline.pipelineLayout,
                 0,
-                stack.longs(textureAtlas.descriptorSet),
+                stack.longs(prepared.textureAtlas().descriptorSet),
                 null
         );
 
-        // Dynamic viewport + scissor
         VkViewport.Buffer viewport = VkViewport.calloc(1, stack)
-                .x(0).y(0)
-                .width(swapchain.width).height(swapchain.height)
-                .minDepth(0.0f).maxDepth(1.0f);
+                .x(0)
+                .y(0)
+                .width(swapchain.width)
+                .height(swapchain.height)
+                .minDepth(0.0f)
+                .maxDepth(1.0f);
         vkCmdSetViewport(cmd, 0, viewport);
 
         VkRect2D.Buffer scissor = VkRect2D.calloc(1, stack);
@@ -214,99 +354,31 @@ public final class VulkanRenderBackend implements RenderBackend {
         scissor.extent().set(swapchain.width, swapchain.height);
         vkCmdSetScissor(cmd, 0, scissor);
 
-        // Compute MVP
-        float[] mvp = CameraMatrices.viewProjection(frame.scene().camera(),
-                new Viewport(swapchain.width, swapchain.height));
-        java.nio.ByteBuffer mvpBuf = stack.malloc(VulkanPipeline.MVP_PUSH_CONSTANT_SIZE);
-        for (float f : mvp) mvpBuf.putFloat(f);
+        ByteBuffer mvpBuf = stack.malloc(VulkanPipeline.MVP_PUSH_CONSTANT_SIZE);
+        for (float f : prepared.mvp()) {
+            mvpBuf.putFloat(f);
+        }
         mvpBuf.flip();
         vkCmdPushConstants(cmd, pipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, mvpBuf);
 
-        // Sync GPU buffers for all submitted meshes
-        if (frame.scene().chunkMeshes().isEmpty()) {
-            syncChunkBuffers(frame.scene().chunks());
-        } else {
-            syncChunkMeshBuffers(frame.scene().chunkMeshes());
-        }
-
-        // Frustum-cull draw calls (safe here — buffers are never deleted mid-frame)
-        com.terralite.render.math.FrustumCuller culler = new com.terralite.render.math.FrustumCuller();
-        culler.update(mvp);
-        int cs = 16; // CHUNK_SIZE
-        for (Map.Entry<RenderChunk, ChunkBuffer> entry : chunkBuffers.entrySet()) {
-            RenderChunk rc = entry.getKey();
-            if (!culler.isVisible(rc.x() * cs, rc.y() * cs, rc.z() * cs,
-                                   rc.x() * cs + cs, rc.y() * cs + cs, rc.z() * cs + cs)) {
-                continue;
-            }
-            VulkanMeshBuffer buf = entry.getValue().buffer();
-            vkCmdBindVertexBuffers(cmd, 0, stack.longs(buf.buffer), stack.longs(0L));
-            vkCmdDraw(cmd, buf.vertexCount, 1, 0, 0);
+        for (ChunkDraw draw : prepared.visibleChunkDraws()) {
+            vkCmdBindVertexBuffers(cmd, 0, stack.longs(draw.buffer()), stack.longs(draw.offset()));
+            vkCmdDraw(cmd, draw.vertexCount(), 1, 0, 0);
         }
 
         vkCmdEndRenderPass(cmd);
         VulkanUtils.check(vkEndCommandBuffer(cmd), "Failed to end command buffer");
     }
 
-    private void syncChunkBuffers(List<RenderChunk> chunks) {
-        Set<RenderChunk> submitted = new HashSet<>(chunks);
-
-        // Destroy removed chunks
-        chunkBuffers.entrySet().removeIf(entry -> {
-            if (!submitted.contains(entry.getKey())) {
-                entry.getValue().destroy(ctx);
-                return true;
-            }
-            return false;
-        });
-
-        // Create new chunks
-        for (RenderChunk chunk : chunks) {
-            chunkBuffers.computeIfAbsent(chunk, c ->
-                    new ChunkBuffer(MeshSignature.untracked(), VulkanMeshBuffer.create(ctx, ChunkDebugMeshFactory.create(c))));
-        }
-    }
-
-    private void syncChunkMeshBuffers(List<RenderChunkMesh> chunkMeshes) {
-        Set<RenderChunk> submitted = new HashSet<>();
-        for (RenderChunkMesh chunkMesh : chunkMeshes) {
-            submitted.add(chunkMesh.chunk());
-        }
-
-        chunkBuffers.entrySet().removeIf(entry -> {
-            if (!submitted.contains(entry.getKey())) {
-                entry.getValue().destroy(ctx);
-                return true;
-            }
-            return false;
-        });
-
-        for (RenderChunkMesh chunkMesh : chunkMeshes) {
-            MeshSignature signature = MeshSignature.from(chunkMesh);
-            ChunkBuffer existing = chunkBuffers.get(chunkMesh.chunk());
-            if (existing == null || !existing.signature().equals(signature)) {
-                if (existing != null) {
-                    existing.destroy(ctx);
-                }
-                chunkBuffers.put(chunkMesh.chunk(), new ChunkBuffer(signature, VulkanMeshBuffer.create(ctx, chunkMesh.mesh())));
-            }
-        }
-    }
-
-    private void destroyChunkBuffers() {
-        for (ChunkBuffer chunkBuffer : chunkBuffers.values()) {
-            chunkBuffer.destroy(ctx);
-        }
-        chunkBuffers.clear();
-    }
-
     private void recreateSwapchain() {
         vkDeviceWaitIdle(ctx.device);
         swapchain.destroy(ctx);
         pipeline.destroy(ctx);
+
         Viewport vp = window.viewport();
         swapchain = VulkanSwapchain.create(ctx, vp.width(), vp.height());
         pipeline = VulkanPipeline.create(ctx, swapchain);
+
         if (textureAtlas != null) {
             textureAtlas.destroy(ctx);
         }
@@ -318,6 +390,7 @@ public final class VulkanRenderBackend implements RenderBackend {
         if (atlas == currentAtlas) {
             return;
         }
+
         vkDeviceWaitIdle(ctx.device);
         textureAtlas.destroy(ctx);
         currentAtlas = atlas;
@@ -325,44 +398,13 @@ public final class VulkanRenderBackend implements RenderBackend {
     }
 
     private static TextureAtlas fallbackAtlas() {
-        return new TextureAtlas(1, 1, new int[] {0xffffffff}, Map.of());
+        return new TextureAtlas(1, 1, new int[]{0xffffffff}, Map.of());
     }
 
     private long windowHandle() {
-        // GlfwWindow exposes the native handle via handle() — accessed reflectively-safe via cast
         if (window instanceof com.terralite.render.glfw.GlfwWindow glfwWindow) {
             return glfwWindow.handle();
         }
         throw new IllegalStateException("VulkanRenderBackend requires a GlfwWindow");
-    }
-
-    record MeshSignature(int vertexCount, int objectId) {
-        static MeshSignature untracked() {
-            return new MeshSignature(-1, 0);
-        }
-
-        /**
-         * Uses object identity rather than content hash — O(1) per call.
-         * RenderPipeline caches the same RenderChunkMesh instance across frames and only
-         * allocates a new one when the chunk is dirty, so reference identity reliably
-         * detects changes without hashing all vertex data.
-         */
-        static MeshSignature from(RenderChunkMesh chunkMesh) {
-            return new MeshSignature(
-                    chunkMesh.mesh().vertices().size(),
-                    System.identityHashCode(chunkMesh)
-            );
-        }
-    }
-
-    private record ChunkBuffer(MeshSignature signature, VulkanMeshBuffer buffer) {
-        private ChunkBuffer {
-            Objects.requireNonNull(signature, "signature");
-            Objects.requireNonNull(buffer, "buffer");
-        }
-
-        private void destroy(VulkanContext ctx) {
-            buffer.destroy(ctx);
-        }
     }
 }

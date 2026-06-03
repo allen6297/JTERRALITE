@@ -68,14 +68,14 @@ public final class RenderSceneExtractor {
     static RenderCamera toRenderCamera(Camera camera) {
         Transform transform = camera.transform();
         return new RenderCamera(
-                transform.x(),
-                transform.y(),
-                transform.z(),
-                camera.fovDegrees(),
-                camera.nearPlane(),
-                camera.farPlane(),
-                camera.yaw(),
-                camera.pitch()
+                (float) transform.x(),
+                (float) transform.y(),
+                (float) transform.z(),
+                (float) camera.fovDegrees(),
+                (float) camera.nearPlane(),
+                (float) camera.farPlane(),
+                (float) camera.yaw(),
+                (float) camera.pitch()
         );
     }
 
