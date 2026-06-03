@@ -5,7 +5,7 @@ import com.terralite.core.registry.ResourceId;
 import com.terralite.engine.chunk.ChunkPos;
 import com.terralite.engine.terrain.BlockPos;
 import com.terralite.engine.terrain.BlockState;
-import com.terralite.engine.terrain.CompactBlockStorage;
+import com.terralite.engine.terrain.MultiblockBlockStorage;
 import com.terralite.game.block.Block;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.worldsgen.WorldsgenSpawnArea;
@@ -36,7 +36,7 @@ class RuntimeWorldFactoryTest {
         assertTrue(world.containsChunk(ChunkPos.of(2, 1, -3)));
         assertTrue(world.containsChunk(ChunkPos.of(2, 2, -3)));
         assertEquals(BlockState.of("terralite:natural/grass_block"), world.getBlock(BlockPos.of(32, 0, -48)));
-        assertTrue(world.blocks() instanceof CompactBlockStorage);
+        assertTrue(world.blocks() instanceof MultiblockBlockStorage);
     }
 
     @Test

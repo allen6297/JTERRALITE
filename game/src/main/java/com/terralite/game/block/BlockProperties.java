@@ -17,6 +17,7 @@ public record BlockProperties(
     List<ResourceId> categories,
     BlockTextures textures,
     BlockModel model,
+    BlockOccupancy occupancy,
     BlockStateDefinition stateDefinition,
     List<BlockModelVariant> modelVariants
 ) {
@@ -34,6 +35,7 @@ public record BlockProperties(
         Objects.requireNonNull(soundType, "soundType");
         categories = List.copyOf(Objects.requireNonNull(categories, "categories"));
         model = Objects.requireNonNull(model, "model");
+        occupancy = Objects.requireNonNull(occupancy, "occupancy");
         stateDefinition = Objects.requireNonNull(stateDefinition, "stateDefinition");
         modelVariants = List.copyOf(Objects.requireNonNull(modelVariants, "modelVariants"));
     }

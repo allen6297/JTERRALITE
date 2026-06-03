@@ -27,6 +27,7 @@ public record Block(BlockProperties properties) {
         private String soundType = "stone";
         private BlockTextures textures;
         private BlockModel model = BlockModel.CUBE_ALL;
+        private BlockOccupancy occupancy = BlockOccupancy.SINGLE;
         private BlockStateDefinition stateDefinition = BlockStateDefinition.EMPTY;
         private final List<BlockModelVariant> modelVariants = new ArrayList<>();
         private final List<ResourceId> categories = new ArrayList<>();
@@ -87,6 +88,11 @@ public record Block(BlockProperties properties) {
             return model(BlockModel.of(model));
         }
 
+        public Builder occupancy(BlockOccupancy occupancy) {
+            this.occupancy = Objects.requireNonNull(occupancy, "occupancy");
+            return this;
+        }
+
         public Builder stateDefinition(BlockStateDefinition stateDefinition) {
             this.stateDefinition = Objects.requireNonNull(stateDefinition, "stateDefinition");
             return this;
@@ -131,6 +137,7 @@ public record Block(BlockProperties properties) {
                 List.copyOf(categories),
                 textures,
                 model,
+                occupancy,
                 stateDefinition,
                 List.copyOf(modelVariants)
             ));

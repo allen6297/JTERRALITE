@@ -76,6 +76,7 @@ class GameContentLoaderTest {
         assertEquals(ResourceId.id("terralite:block/cube_column"), grassBlock.properties().model().id());
         assertEquals(ResourceId.id("terralite:block/grass_block_top"), grassBlock.properties().textures().top());
         assertEquals(ResourceId.id("terralite:block/double_stone"), doubleStone.properties().model().id());
+        assertEquals(2, doubleStone.properties().occupancy().offsets().size());
         assertEquals(3, wheat.properties().modelVariants().size());
         assertEquals(ResourceId.id("terralite:block/wheat_stage7"), wheat.properties().modelVariants().get(2).model().id());
         assertEquals("terralite:crops/wheat", wheatSeeds.properties().placesBlock());

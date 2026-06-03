@@ -6,6 +6,21 @@
   "material": "stone",
   "sound_type": "stone",
   "model": "terralite:block/double_stone",
+  "state": {
+    "properties": {
+      "facing": ["north", "east", "south", "west"]
+    },
+    "default": {
+      "facing": "north"
+    }
+  },
+  "occupancy": {
+    "rotates_with": "facing",
+    "offsets": [
+      [0, 0, 0],
+      [1, 0, 0]
+    ]
+  },
   "textures": {
     "all": "terralite:block/stone"
   },

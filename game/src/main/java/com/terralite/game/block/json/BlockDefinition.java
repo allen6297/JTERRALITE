@@ -1,10 +1,13 @@
 package com.terralite.game.block.json;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.terralite.core.registry.ResourceId;
+import com.terralite.engine.terrain.BlockPos;
 import com.terralite.game.block.Block;
 import com.terralite.game.block.BlockModel;
 import com.terralite.game.block.BlockModelVariant;
+import com.terralite.game.block.BlockOccupancy;
 import com.terralite.game.block.BlockStateDefinition;
 import com.terralite.game.block.BlockTextures;
 
@@ -28,6 +31,7 @@ public record BlockDefinition(
     @JsonProperty("sound_type")
     String soundType,
     String model,
+    JsonNode occupancy,
     TextureDefinition textures,
     StateSchemaDefinition state,
     List<StateDefinition> states,
@@ -44,6 +48,7 @@ public record BlockDefinition(
                 .material(defaultString(material, "stone"))
                 .soundType(defaultString(soundType, "stone"))
                 .model(parseModel(model))
+                .occupancy(parseOccupancy(occupancy))
                 .stateDefinition(parseStateDefinition(state))
                 .modelVariants(parseStates(states))
                 .categories(parseCategories(categories));
@@ -65,6 +70,13 @@ public record BlockDefinition(
     }
 
     public record StateDefinition(Map<String, String> when, String model, TextureDefinition textures) {
+    }
+
+    public record OccupancyDefinition(
+            List<List<Integer>> offsets,
+            @JsonProperty("rotates_with")
+            String rotatesWith
+    ) {
     }
 
     private static String defaultString(String value, String defaultValue) {
@@ -113,6 +125,51 @@ public record BlockDefinition(
                 state.properties() == null ? Map.of() : state.properties(),
                 state.defaultValues() == null ? Map.of() : state.defaultValues()
         );
+    }
+
+    private BlockOccupancy parseOccupancy(JsonNode occupancy) {
+        if (occupancy == null || occupancy.isMissingNode() || occupancy.isNull()) {
+            return BlockOccupancy.SINGLE;
+        }
+        if (occupancy.isArray()) {
+            return new BlockOccupancy(parseOffsets(occupancy));
+        }
+        OccupancyDefinition definition = mapperConvert(occupancy, OccupancyDefinition.class);
+        return new BlockOccupancy(parseOffsets(definition.offsets()), definition.rotatesWith());
+    }
+
+    private static List<BlockPos> parseOffsets(JsonNode offsets) {
+        if (offsets == null || !offsets.isArray()) {
+            throw new IllegalArgumentException("Block occupancy must define offsets");
+        }
+        return java.util.stream.StreamSupport.stream(offsets.spliterator(), false)
+                .map(node -> {
+                    if (!node.isArray() || node.size() < 3) {
+                        throw new IllegalArgumentException("Block occupancy offsets must contain x, y, z");
+                    }
+                    return BlockPos.of(node.get(0).asInt(), node.get(1).asInt(), node.get(2).asInt());
+                })
+                .toList();
+    }
+
+    private static List<BlockPos> parseOffsets(List<List<Integer>> offsets) {
+        if (offsets == null) {
+            throw new IllegalArgumentException("Block occupancy must define offsets");
+        }
+        return offsets.stream()
+                .map(BlockDefinition::parseOffset)
+                .toList();
+    }
+
+    private static BlockPos parseOffset(List<Integer> offset) {
+        if (offset == null || offset.size() < 3) {
+            throw new IllegalArgumentException("Block occupancy offsets must contain x, y, z");
+        }
+        return BlockPos.of(offset.get(0), offset.get(1), offset.get(2));
+    }
+
+    private static <T> T mapperConvert(JsonNode node, Class<T> type) {
+        return new com.fasterxml.jackson.databind.ObjectMapper().convertValue(node, type);
     }
 
     private static ResourceId parseNullableId(String value) {

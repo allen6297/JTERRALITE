@@ -31,15 +31,21 @@ class BlockJsonLoaderTest {
               "material": "stone",
               "sound_type": "stone",
               "model": "terralite:block/cube_all",
+              "occupancy": {
+                "rotates_with": "facing",
+                "offsets": [[0, 0, 0], [1, 0, 0]]
+              },
               "textures": {
                 "all": "terralite:block/stone"
               },
               "state": {
                 "properties": {
-                  "age": ["0", "1", "2", "3", "4", "5", "6", "7"]
+                  "age": ["0", "1", "2", "3", "4", "5", "6", "7"],
+                  "facing": ["north", "east", "south", "west"]
                 },
                 "default": {
-                  "age": "0"
+                  "age": "0",
+                  "facing": "north"
                 }
               },
               "states": [
@@ -69,6 +75,8 @@ class BlockJsonLoaderTest {
         assertEquals("stone", stone.properties().material());
         assertEquals("stone", stone.properties().soundType());
         assertEquals(ResourceId.id("terralite:block/cube_all"), stone.properties().model().id());
+        assertEquals(2, stone.properties().occupancy().offsets().size());
+        assertEquals("facing", stone.properties().occupancy().rotatesWith());
         assertEquals(ResourceId.id("terralite:block/stone"), stone.properties().textures().all());
         assertEquals(List.of("0", "1", "2", "3", "4", "5", "6", "7"),
                 stone.properties().stateDefinition().properties().get("age"));

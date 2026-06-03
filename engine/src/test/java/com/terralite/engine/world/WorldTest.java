@@ -5,8 +5,11 @@ import com.terralite.engine.chunk.ChunkPos;
 import com.terralite.engine.entity.Entity;
 import com.terralite.engine.entity.EntityId;
 import com.terralite.engine.entity.EntitySpawnRequest;
+import com.terralite.engine.physics.Aabb;
 import com.terralite.engine.terrain.BlockPos;
 import com.terralite.engine.terrain.BlockState;
+import com.terralite.engine.terrain.MultiblockBlockStorage;
+import com.terralite.engine.terrain.SparseBlockStorage;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -68,5 +71,37 @@ class WorldTest {
 
         assertEquals(stone, world.getBlock(pos));
         assertEquals(1, world.blocks().size());
+    }
+
+    @Test
+    void worldRemovesBlocksThroughStorage() {
+        World world = new World();
+        BlockPos pos = BlockPos.of(1, 2, 3);
+        BlockState stone = BlockState.of("terralite:stone");
+        world.setBlock(pos, stone);
+
+        assertEquals(stone, world.removeBlock(pos));
+
+        assertEquals(BlockState.AIR, world.getBlock(pos));
+        assertEquals(0, world.blocks().size());
+    }
+
+    @Test
+    void worldExpandsMultiblockOccupiedCellsIntoCollisionBoxes() {
+        World world = new World(new MultiblockBlockStorage(new SparseBlockStorage(), state -> {
+            if (state.id().toString().equals("terralite:double_stone")) {
+                return List.of(BlockPos.of(0, 0, 0), BlockPos.of(1, 0, 0));
+            }
+            return List.of(BlockPos.of(0, 0, 0));
+        }));
+
+        world.setBlock(BlockPos.of(4, 0, 0), BlockState.of("terralite:double_stone"));
+
+        assertEquals(List.of(BlockPos.of(4, 0, 0), BlockPos.of(5, 0, 0)),
+                List.copyOf(world.collisionBlockPositions()));
+        assertEquals(List.of(
+                new Aabb(4.0, 0.0, 0.0, 5.0, 1.0, 1.0),
+                new Aabb(5.0, 0.0, 0.0, 6.0, 1.0, 1.0)
+        ), List.copyOf(world.blockCollisionBoxes()));
     }
 }

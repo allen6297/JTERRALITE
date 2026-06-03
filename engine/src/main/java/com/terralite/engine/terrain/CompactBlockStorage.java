@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.function.IntFunction;
 import java.util.function.ToIntFunction;
 
@@ -32,6 +33,11 @@ public final class CompactBlockStorage implements BlockStorage {
 
     public int getStateId(BlockPos pos) {
         return blocks.getOrDefault(Objects.requireNonNull(pos, "pos"), airStateId);
+    }
+
+    @Override
+    public OptionalInt stateId(BlockPos pos) {
+        return OptionalInt.of(getStateId(pos));
     }
 
     @Override

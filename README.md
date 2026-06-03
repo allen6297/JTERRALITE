@@ -239,6 +239,50 @@ undeclared properties as `block.state.property.unknown`, invalid values as
 `block.state.value.invalid`, and missing defaults as
 `block.state.default.missing`.
 
+Multiblock-sized blocks can declare occupied cells in block JSON:
+
+```json
+"occupancy": [
+  [0, 0, 0],
+  [1, 0, 0]
+]
+```
+
+For state-driven orientation, use the object form:
+
+```json
+"state": {
+  "properties": {
+    "facing": ["north", "east", "south", "west"]
+  },
+  "default": {
+    "facing": "north"
+  }
+},
+"occupancy": {
+  "rotates_with": "facing",
+  "offsets": [
+    [0, 0, 0],
+    [1, 0, 0]
+  ]
+}
+```
+
+The origin offset `[0, 0, 0]` is required. Runtime worlds created from
+`GameData` use multiblock-aware block storage: placement fails if any occupied
+cell is already claimed, child cells resolve back to the origin block state,
+removing any occupied cell removes the whole multiblock, and render iteration
+only visits origin cells. `rotates_with` currently rotates occupancy around the
+origin from the north-facing offset layout; model mesh rotation is a separate
+rendering step.
+
+World snapshots capture chunks, entity ids, and origin blocks. Block snapshots
+include the block id, state properties, and an optional compact state id when
+the backing storage exposes one. `WorldSnapshotJsonCodec` can read and write
+these snapshots as JSON files. Restoring into multiblock-aware storage replays
+only origin blocks, so occupied child cells are rebuilt from block occupancy
+metadata instead of being saved redundantly.
+
 Unknown or missing Terralite JSON model types fail during model mesh loading
 with a message that includes the model id and file path.
 
