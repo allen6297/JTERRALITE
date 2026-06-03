@@ -78,7 +78,7 @@ public final class VulkanMeshBuffer {
     }
 
     private static float[] toFloatArray(DebugMesh mesh) {
-        float[] data = new float[mesh.vertices().size() * 8];
+        float[] data = new float[mesh.vertices().size() * 9]; // xyz + rgba + uv
         int i = 0;
         for (DebugVertex v : mesh.vertices()) {
             data[i++] = v.x();
@@ -87,6 +87,7 @@ public final class VulkanMeshBuffer {
             data[i++] = v.red();
             data[i++] = v.green();
             data[i++] = v.blue();
+            data[i++] = v.alpha();
             data[i++] = v.u();
             data[i++] = v.v();
         }

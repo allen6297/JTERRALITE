@@ -58,9 +58,9 @@ public final class VulkanPipeline {
     private static final String VERTEX_SHADER_GLSL = """
             #version 450
             layout(location = 0) in vec3 inPosition;
-            layout(location = 1) in vec3 inColor;
+            layout(location = 1) in vec4 inColor;
             layout(location = 2) in vec2 inUv;
-            layout(location = 0) out vec3 fragColor;
+            layout(location = 0) out vec4 fragColor;
             layout(location = 1) out vec2 fragUv;
             layout(push_constant) uniform PushConstants {
                 mat4 mvp;
@@ -74,13 +74,13 @@ public final class VulkanPipeline {
 
     private static final String FRAGMENT_SHADER_GLSL = """
             #version 450
-            layout(location = 0) in vec3 fragColor;
+            layout(location = 0) in vec4 fragColor;
             layout(location = 1) in vec2 fragUv;
             layout(binding = 0) uniform sampler2D atlasSampler;
             layout(location = 0) out vec4 outColor;
             void main() {
                 vec4 sampled = texture(atlasSampler, fragUv);
-                outColor = vec4(sampled.rgb * fragColor, sampled.a);
+                outColor = vec4(sampled.rgb * fragColor.rgb, sampled.a * fragColor.a);
             }
             """;
 
@@ -159,15 +159,15 @@ public final class VulkanPipeline {
         stages.get(1).sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
                 .stage(VK_SHADER_STAGE_FRAGMENT_BIT).module(fragModule).pName(stack.UTF8("main"));
 
-        // Vertex input: binding 0, stride = 8 floats (xyz rgb uv)
-        int stride = 8 * Float.BYTES;
+        // Vertex input: binding 0, stride = 9 floats (xyz rgba uv)
+        int stride = 9 * Float.BYTES;
         VkVertexInputBindingDescription.Buffer bindingDesc = VkVertexInputBindingDescription.calloc(1, stack)
                 .binding(0).stride(stride).inputRate(VK_VERTEX_INPUT_RATE_VERTEX);
 
         VkVertexInputAttributeDescription.Buffer attrDesc = VkVertexInputAttributeDescription.calloc(3, stack);
         attrDesc.get(0).binding(0).location(0).format(VK_FORMAT_R32G32B32_SFLOAT).offset(0);
-        attrDesc.get(1).binding(0).location(1).format(VK_FORMAT_R32G32B32_SFLOAT).offset(3 * Float.BYTES);
-        attrDesc.get(2).binding(0).location(2).format(VK_FORMAT_R32G32_SFLOAT).offset(6 * Float.BYTES);
+        attrDesc.get(1).binding(0).location(1).format(VK_FORMAT_R32G32B32A32_SFLOAT).offset(3 * Float.BYTES);
+        attrDesc.get(2).binding(0).location(2).format(VK_FORMAT_R32G32_SFLOAT).offset(7 * Float.BYTES);
 
         VkPipelineVertexInputStateCreateInfo vertexInput = VkPipelineVertexInputStateCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
@@ -187,7 +187,7 @@ public final class VulkanPipeline {
         VkPipelineRasterizationStateCreateInfo rasterizer = VkPipelineRasterizationStateCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
                 .polygonMode(VK_POLYGON_MODE_FILL)
-                .cullMode(VK_CULL_MODE_BACK_BIT)
+                .cullMode(VK_CULL_MODE_NONE)
                 .frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
                 .lineWidth(1.0f);
 
@@ -198,7 +198,13 @@ public final class VulkanPipeline {
         VkPipelineColorBlendAttachmentState.Buffer colorBlendAttachment = VkPipelineColorBlendAttachmentState.calloc(1, stack)
                 .colorWriteMask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
-                .blendEnable(false);
+                .blendEnable(true)
+                .srcColorBlendFactor(VK_BLEND_FACTOR_SRC_ALPHA)
+                .dstColorBlendFactor(VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
+                .colorBlendOp(VK_BLEND_OP_ADD)
+                .srcAlphaBlendFactor(VK_BLEND_FACTOR_ONE)
+                .dstAlphaBlendFactor(VK_BLEND_FACTOR_ZERO)
+                .alphaBlendOp(VK_BLEND_OP_ADD);
 
         VkPipelineColorBlendStateCreateInfo colorBlend = VkPipelineColorBlendStateCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)

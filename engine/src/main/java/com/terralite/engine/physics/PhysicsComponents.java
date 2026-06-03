@@ -7,6 +7,7 @@ public final class PhysicsComponents {
     public static final ComponentType<Transform> PREVIOUS_TRANSFORM = ComponentType.of("terralite:previous_transform", Transform.class);
     public static final ComponentType<Velocity> VELOCITY = ComponentType.of("terralite:velocity", Velocity.class);
     public static final ComponentType<Collider> COLLIDER = ComponentType.of("terralite:collider", Collider.class);
+    public static final ComponentType<Boolean> GROUNDED = ComponentType.of("terralite:grounded", Boolean.class);
 
     private PhysicsComponents() {
     }

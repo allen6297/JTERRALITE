@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Terralite Game" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.terralite.launcher.TerraliteGame" />
+    <module name="JTERRALITE.launcher.main" />
+    <option name="PROGRAM_PARAMETERS" value="$PROJECT_DIR$/packs" />
+    <option name="VM_PARAMETERS" value="-ea" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

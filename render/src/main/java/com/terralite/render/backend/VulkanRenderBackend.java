@@ -222,14 +222,24 @@ public final class VulkanRenderBackend implements RenderBackend {
         mvpBuf.flip();
         vkCmdPushConstants(cmd, pipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, mvpBuf);
 
-        // Draw real chunk meshes when present; fall back to flat markers for empty/debug scenes.
+        // Sync GPU buffers for all submitted meshes
         if (frame.scene().chunkMeshes().isEmpty()) {
             syncChunkBuffers(frame.scene().chunks());
         } else {
             syncChunkMeshBuffers(frame.scene().chunkMeshes());
         }
-        for (ChunkBuffer chunkBuffer : chunkBuffers.values()) {
-            VulkanMeshBuffer buf = chunkBuffer.buffer();
+
+        // Frustum-cull draw calls (safe here — buffers are never deleted mid-frame)
+        com.terralite.render.math.FrustumCuller culler = new com.terralite.render.math.FrustumCuller();
+        culler.update(mvp);
+        int cs = 16; // CHUNK_SIZE
+        for (Map.Entry<RenderChunk, ChunkBuffer> entry : chunkBuffers.entrySet()) {
+            RenderChunk rc = entry.getKey();
+            if (!culler.isVisible(rc.x() * cs, rc.y() * cs, rc.z() * cs,
+                                   rc.x() * cs + cs, rc.y() * cs + cs, rc.z() * cs + cs)) {
+                continue;
+            }
+            VulkanMeshBuffer buf = entry.getValue().buffer();
             vkCmdBindVertexBuffers(cmd, 0, stack.longs(buf.buffer), stack.longs(0L));
             vkCmdDraw(cmd, buf.vertexCount, 1, 0, 0);
         }
@@ -326,15 +336,21 @@ public final class VulkanRenderBackend implements RenderBackend {
         throw new IllegalStateException("VulkanRenderBackend requires a GlfwWindow");
     }
 
-    record MeshSignature(int vertexCount, int vertexHash) {
+    record MeshSignature(int vertexCount, int objectId) {
         static MeshSignature untracked() {
             return new MeshSignature(-1, 0);
         }
 
+        /**
+         * Uses object identity rather than content hash — O(1) per call.
+         * RenderPipeline caches the same RenderChunkMesh instance across frames and only
+         * allocates a new one when the chunk is dirty, so reference identity reliably
+         * detects changes without hashing all vertex data.
+         */
         static MeshSignature from(RenderChunkMesh chunkMesh) {
             return new MeshSignature(
                     chunkMesh.mesh().vertices().size(),
-                    chunkMesh.mesh().vertices().hashCode()
+                    System.identityHashCode(chunkMesh)
             );
         }
     }

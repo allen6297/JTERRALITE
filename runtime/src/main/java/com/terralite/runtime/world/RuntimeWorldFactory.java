@@ -23,6 +23,17 @@ public final class RuntimeWorldFactory {
     public static final ResourceId DEFAULT_SPAWN_AREA = ResourceId.id("terralite:spawn_area");
     public static final ResourceId DEFAULT_SURFACE_BLOCK = ResourceId.id("terralite:natural/grass_block");
 
+    /** Creates a world with proper block storage but no terrain — for use with {@link com.terralite.runtime.terrain.TerrainGeneratorSystem}. */
+    public World createEmpty(GameData gameData) {
+        Objects.requireNonNull(gameData, "gameData");
+        try {
+            BlockStateRegistry stateRegistry = BlockStateRegistry.from(gameData);
+            return new World(createBlockStorage(gameData, stateRegistry));
+        } catch (IllegalArgumentException e) {
+            return new World();
+        }
+    }
+
     public World create(GameData gameData) {
         return create(gameData, DEFAULT_SPAWN_AREA);
     }

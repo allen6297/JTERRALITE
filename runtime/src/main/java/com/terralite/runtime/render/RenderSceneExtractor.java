@@ -65,7 +65,7 @@ public final class RenderSceneExtractor {
         return scene.build();
     }
 
-    private static RenderCamera toRenderCamera(Camera camera) {
+    static RenderCamera toRenderCamera(Camera camera) {
         Transform transform = camera.transform();
         return new RenderCamera(
                 transform.x(),
@@ -79,7 +79,7 @@ public final class RenderSceneExtractor {
         );
     }
 
-    private static void addEntityObject(RenderScene.Builder scene, Entity entity) {
+    static void addEntityObject(RenderScene.Builder scene, Entity entity) {
         entity.get(PhysicsComponents.TRANSFORM)
                 .map(transform -> RenderObject.of(
                         "terralite:entity/" + entity.id().value(),
