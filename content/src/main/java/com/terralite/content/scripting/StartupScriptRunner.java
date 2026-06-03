@@ -4,6 +4,7 @@ import com.terralite.content.pack.ContentPack;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 public final class StartupScriptRunner {
     private final ScriptScopeRunner scopeRunner;
@@ -22,5 +23,9 @@ public final class StartupScriptRunner {
 
     public ScriptExecutionReport run(List<ContentPack> packs, List<StartupScriptGlobal> extraGlobals) throws IOException {
         return scopeRunner.run(packs, ScriptScope.STARTUP, extraGlobals);
+    }
+
+    public ScriptExecutionReport run(List<ContentPack> packs, Function<ContentPack, List<StartupScriptGlobal>> globalsFactory) throws IOException {
+        return scopeRunner.run(packs, ScriptScope.STARTUP, globalsFactory);
     }
 }

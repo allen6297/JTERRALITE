@@ -62,6 +62,7 @@ public final class ServerScriptHost {
             Context context = Context.enter();
             try {
                 context.setOptimizationLevel(-1);
+                context.setClassShutter(className -> className.startsWith("com.terralite."));
                 NativeObject tick = new NativeObject();
                 ScriptableObject.putProperty(tick, "index", index);
                 ScriptableObject.putProperty(tick, "deltaMillis", delta.toMillis());
@@ -85,6 +86,7 @@ public final class ServerScriptHost {
         Context context = Context.enter();
         try {
             context.setOptimizationLevel(-1);
+            context.setClassShutter(className -> className.startsWith("com.terralite."));
             Scriptable scope = context.initStandardObjects();
             ScriptRuntimeApi api = new ScriptRuntimeApi(
                     script.scope(),

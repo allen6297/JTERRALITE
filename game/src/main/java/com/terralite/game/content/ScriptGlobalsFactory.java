@@ -13,6 +13,7 @@ import java.util.List;
 @FunctionalInterface
 public interface ScriptGlobalsFactory {
     List<StartupScriptGlobal> create(
+            String namespace,
             MutableRegistry<Block> blocks,
             MutableRegistry<Item> items,
             MutableRegistry<Biome> biomes,

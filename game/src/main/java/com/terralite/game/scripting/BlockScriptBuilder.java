@@ -93,6 +93,12 @@ public final class BlockScriptBuilder {
     public BlockScriptBuilder variants(Object variants) { return this; }
 
     Block build() {
+        if (hardness < 0) {
+            throw new IllegalArgumentException("hardness must be non-negative: " + hardness);
+        }
+        if (resistance < 0) {
+            throw new IllegalArgumentException("resistance must be non-negative: " + resistance);
+        }
         return Block.builder()
                 .displayName(displayName)
                 .hardness(hardness)

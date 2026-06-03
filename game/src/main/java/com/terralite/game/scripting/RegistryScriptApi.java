@@ -95,6 +95,12 @@ public final class RegistryScriptApi {
         public void setSoundType(String soundType) { this.soundType = soundType != null ? soundType : "stone"; }
 
         Block toBlock() {
+            if (hardness < 0) {
+                throw new IllegalArgumentException("hardness must be non-negative: " + hardness);
+            }
+            if (resistance < 0) {
+                throw new IllegalArgumentException("resistance must be non-negative: " + resistance);
+            }
             Block.Builder builder = Block.builder()
                     .displayName(displayName)
                     .hardness(hardness)

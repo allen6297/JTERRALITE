@@ -16,12 +16,14 @@ public final class GameStartupScriptGlobals {
     }
 
     public static List<StartupScriptGlobal> create(
+            String namespace,
             MutableRegistry<Block> blockRegistry,
             MutableRegistry<Item> itemRegistry,
             MutableRegistry<Biome> biomeRegistry,
             MutableRegistry<Tag> tagRegistry,
             MutableRegistry<CreativeCategory> creativeCategoryRegistry
     ) {
+        Objects.requireNonNull(namespace, "namespace");
         Objects.requireNonNull(blockRegistry, "blockRegistry");
         Objects.requireNonNull(itemRegistry, "itemRegistry");
         Objects.requireNonNull(biomeRegistry, "biomeRegistry");
@@ -30,6 +32,7 @@ public final class GameStartupScriptGlobals {
 
         StartupEventsScriptApi startupEvents =
                 new StartupEventsScriptApi(
+                        namespace,
                         blockRegistry,
                         itemRegistry,
                         biomeRegistry,

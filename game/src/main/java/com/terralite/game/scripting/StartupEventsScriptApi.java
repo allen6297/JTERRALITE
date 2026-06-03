@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 
 public final class StartupEventsScriptApi {
+    private final String namespace;
     private final MutableRegistry<Block> blockRegistry;
     private final MutableRegistry<Item> itemRegistry;
     private final MutableRegistry<Biome> biomeRegistry;
@@ -23,12 +24,14 @@ public final class StartupEventsScriptApi {
     private final MutableRegistry<CreativeCategory> creativeCategoryRegistry;
 
     public StartupEventsScriptApi(
+            String namespace,
             MutableRegistry<Block> blockRegistry,
             MutableRegistry<Item> itemRegistry,
             MutableRegistry<Biome> biomeRegistry,
             MutableRegistry<Tag> tagRegistry,
             MutableRegistry<CreativeCategory> creativeCategoryRegistry
     ) {
+        this.namespace = Objects.requireNonNull(namespace, "namespace");
         this.blockRegistry = Objects.requireNonNull(blockRegistry, "blockRegistry");
         this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry");
         this.biomeRegistry = Objects.requireNonNull(biomeRegistry, "biomeRegistry");
@@ -45,7 +48,7 @@ public final class StartupEventsScriptApi {
 
         switch (type) {
             case "block" -> {
-                BlockRegistryEvent event = new BlockRegistryEvent();
+                BlockRegistryEvent event = new BlockRegistryEvent(namespace);
                 fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
                 for (BlockScriptBuilder builder : event.pending) {
                     blockRegistry.register(builder.id(), builder.build());
@@ -53,7 +56,7 @@ public final class StartupEventsScriptApi {
                 }
             }
             case "item" -> {
-                ItemRegistryEvent event = new ItemRegistryEvent();
+                ItemRegistryEvent event = new ItemRegistryEvent(namespace);
                 fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
                 for (ItemScriptBuilder builder : event.pending) {
                     itemRegistry.register(builder.id(), builder.build());
@@ -61,21 +64,21 @@ public final class StartupEventsScriptApi {
                 }
             }
             case "biome" -> {
-                BiomeRegistryEvent event = new BiomeRegistryEvent();
+                BiomeRegistryEvent event = new BiomeRegistryEvent(namespace);
                 fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
                 for (BiomeScriptBuilder builder : event.pending) {
                     biomeRegistry.register(builder.id(), builder.build());
                 }
             }
             case "tag" -> {
-                TagRegistryEvent event = new TagRegistryEvent();
+                TagRegistryEvent event = new TagRegistryEvent(namespace);
                 fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
                 for (TagScriptBuilder builder : event.pending) {
                     tagRegistry.register(builder.id(), builder.build());
                 }
             }
             case "creative_category" -> {
-                CreativeCategoryRegistryEvent event = new CreativeCategoryRegistryEvent();
+                CreativeCategoryRegistryEvent event = new CreativeCategoryRegistryEvent(namespace);
                 fn.call(cx, scope, scope, new Object[]{Context.javaToJS(event, scope)});
                 for (CreativeCategoryScriptBuilder builder : event.pending) {
                     creativeCategoryRegistry.register(builder.id(), builder.build());
@@ -105,53 +108,95 @@ public final class StartupEventsScriptApi {
     }
 
     public static final class BlockRegistryEvent {
+        private final String namespace;
         private final List<BlockScriptBuilder> pending = new ArrayList<>();
 
+        BlockRegistryEvent(String namespace) {
+            this.namespace = namespace;
+        }
+
         public BlockScriptBuilder create(String id) {
-            BlockScriptBuilder builder = new BlockScriptBuilder(ResourceId.id(Objects.requireNonNull(id, "id")));
+            ResourceId resourceId = ResourceId.id(Objects.requireNonNull(id, "id"));
+            requireOwnNamespace(resourceId, namespace);
+            BlockScriptBuilder builder = new BlockScriptBuilder(resourceId);
             pending.add(builder);
             return builder;
         }
     }
 
     public static final class ItemRegistryEvent {
+        private final String namespace;
         private final List<ItemScriptBuilder> pending = new ArrayList<>();
 
+        ItemRegistryEvent(String namespace) {
+            this.namespace = namespace;
+        }
+
         public ItemScriptBuilder create(String id) {
-            ItemScriptBuilder builder = new ItemScriptBuilder(ResourceId.id(Objects.requireNonNull(id, "id")));
+            ResourceId resourceId = ResourceId.id(Objects.requireNonNull(id, "id"));
+            requireOwnNamespace(resourceId, namespace);
+            ItemScriptBuilder builder = new ItemScriptBuilder(resourceId);
             pending.add(builder);
             return builder;
         }
     }
 
     public static final class BiomeRegistryEvent {
+        private final String namespace;
         private final List<BiomeScriptBuilder> pending = new ArrayList<>();
 
+        BiomeRegistryEvent(String namespace) {
+            this.namespace = namespace;
+        }
+
         public BiomeScriptBuilder create(String id) {
-            BiomeScriptBuilder builder = new BiomeScriptBuilder(ResourceId.id(Objects.requireNonNull(id, "id")));
+            ResourceId resourceId = ResourceId.id(Objects.requireNonNull(id, "id"));
+            requireOwnNamespace(resourceId, namespace);
+            BiomeScriptBuilder builder = new BiomeScriptBuilder(resourceId);
             pending.add(builder);
             return builder;
         }
     }
 
     public static final class TagRegistryEvent {
+        private final String namespace;
         private final List<TagScriptBuilder> pending = new ArrayList<>();
 
+        TagRegistryEvent(String namespace) {
+            this.namespace = namespace;
+        }
+
         public TagScriptBuilder create(String id) {
-            TagScriptBuilder builder = new TagScriptBuilder(ResourceId.id(Objects.requireNonNull(id, "id")));
+            ResourceId resourceId = ResourceId.id(Objects.requireNonNull(id, "id"));
+            requireOwnNamespace(resourceId, namespace);
+            TagScriptBuilder builder = new TagScriptBuilder(resourceId);
             pending.add(builder);
             return builder;
         }
     }
 
     public static final class CreativeCategoryRegistryEvent {
+        private final String namespace;
         private final List<CreativeCategoryScriptBuilder> pending = new ArrayList<>();
 
+        CreativeCategoryRegistryEvent(String namespace) {
+            this.namespace = namespace;
+        }
+
         public CreativeCategoryScriptBuilder create(String id) {
-            CreativeCategoryScriptBuilder builder =
-                    new CreativeCategoryScriptBuilder(ResourceId.id(Objects.requireNonNull(id, "id")));
+            ResourceId resourceId = ResourceId.id(Objects.requireNonNull(id, "id"));
+            requireOwnNamespace(resourceId, namespace);
+            CreativeCategoryScriptBuilder builder = new CreativeCategoryScriptBuilder(resourceId);
             pending.add(builder);
             return builder;
+        }
+    }
+
+    private static void requireOwnNamespace(ResourceId id, String namespace) {
+        if (!id.namespace().equals(namespace)) {
+            throw new IllegalArgumentException(
+                "Pack '" + namespace + "' cannot register content under foreign namespace '" + id.namespace() + "'"
+            );
         }
     }
 }

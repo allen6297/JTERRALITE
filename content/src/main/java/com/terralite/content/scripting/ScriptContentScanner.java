@@ -34,11 +34,18 @@ public final class ScriptContentScanner {
             return;
         }
 
+        Path realScopePath = scopePath.toRealPath();
         try (var stream = Files.walk(scopePath)) {
             stream.filter(Files::isRegularFile)
                     .filter(ScriptContentScanner::isScriptFile)
                     .map(path -> path.toAbsolutePath().normalize())
-                    .filter(path -> path.startsWith(scopePath))
+                    .filter(path -> {
+                        try {
+                            return path.toRealPath().startsWith(realScopePath);
+                        } catch (IOException e) {
+                            return false;
+                        }
+                    })
                     .map(path -> new ScriptContentFile(scope, path))
                     .forEach(files::add);
         }

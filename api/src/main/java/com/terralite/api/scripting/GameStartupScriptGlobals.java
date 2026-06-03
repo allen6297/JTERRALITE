@@ -15,6 +15,7 @@ public final class GameStartupScriptGlobals {
     }
 
     public static List<StartupScriptGlobal> create(
+            String namespace,
             MutableRegistry<Block> blockRegistry,
             MutableRegistry<Item> itemRegistry,
             MutableRegistry<Biome> biomeRegistry,
@@ -22,6 +23,7 @@ public final class GameStartupScriptGlobals {
             MutableRegistry<CreativeCategory> creativeCategoryRegistry
     ) {
         return com.terralite.game.scripting.GameStartupScriptGlobals.create(
+                namespace,
                 blockRegistry,
                 itemRegistry,
                 biomeRegistry,

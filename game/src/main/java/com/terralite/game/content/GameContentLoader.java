@@ -79,7 +79,8 @@ public final class GameContentLoader {
         GameContentLoadResult loadResult = applier.apply(orderedPacks, registries);
         ScriptExecutionReport startupScripts = startupScriptRunner.run(
                 orderedPacks,
-                globalsFactory.create(
+                pack -> globalsFactory.create(
+                        pack.manifest().id().namespace(),
                         blockRegistry,
                         itemRegistry,
                         biomeRegistry,
