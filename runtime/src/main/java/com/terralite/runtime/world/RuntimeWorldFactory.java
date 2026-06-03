@@ -8,6 +8,7 @@ import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.worldsgen.WorldsgenSpawnArea;
 import com.terralite.engine.terrain.BlockPos;
 import com.terralite.engine.terrain.BlockState;
+import com.terralite.game.block.BlockStateRegistry;
 
 import java.util.Objects;
 
@@ -27,7 +28,13 @@ public final class RuntimeWorldFactory {
         WorldsgenSpawnArea spawnArea = gameData.registry(TerraliteRegistries.WORLDSGEN_SPAWN_AREAS)
                 .get(spawnAreaId)
                 .orElseGet(() -> WorldsgenSpawnArea.builder().build());
-        return create(spawnArea, new BlockState(resolveSurfaceBlock(gameData)));
+        try {
+            BlockStateRegistry stateRegistry = BlockStateRegistry.from(gameData);
+            BlockState surfaceBlock = stateRegistry.defaultState(resolveSurfaceBlock(gameData));
+            return create(spawnArea, surfaceBlock, new World(stateRegistry.createStorage()));
+        } catch (IllegalArgumentException exception) {
+            return create(spawnArea, new BlockState(resolveSurfaceBlock(gameData)));
+        }
     }
 
     public World create(WorldsgenSpawnArea spawnArea) {
@@ -39,6 +46,14 @@ public final class RuntimeWorldFactory {
         Objects.requireNonNull(surfaceBlock, "surfaceBlock");
 
         World world = new World();
+        return create(spawnArea, surfaceBlock, world);
+    }
+
+    private World create(WorldsgenSpawnArea spawnArea, BlockState surfaceBlock, World world) {
+        Objects.requireNonNull(spawnArea, "spawnArea");
+        Objects.requireNonNull(surfaceBlock, "surfaceBlock");
+        Objects.requireNonNull(world, "world");
+
         for (var pos : spawnArea.chunkPositions()) {
             world.putChunk(new Chunk(pos));
             fillSurface(world, pos.x(), pos.y(), pos.z(), surfaceBlock);

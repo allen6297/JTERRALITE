@@ -51,6 +51,8 @@ class GameContentLoaderTest {
 
         Block stone = report.gameData().get(ResourceKey.of(TerraliteRegistries.BLOCKS, "terralite:natural/stone"));
         Block grassBlock = report.gameData().get(ResourceKey.of(TerraliteRegistries.BLOCKS, "terralite:natural/grass_block"));
+        Block doubleStone = report.gameData().get(ResourceKey.of(TerraliteRegistries.BLOCKS, "terralite:natural/double_stone"));
+        Block wheat = report.gameData().get(ResourceKey.of(TerraliteRegistries.BLOCKS, "terralite:crops/wheat"));
         Item wheatSeeds = report.gameData().get(ResourceKey.of(TerraliteRegistries.ITEMS, "terralite:seeds/wheat_seeds"));
         Item stoneProbe = report.gameData().get(ResourceKey.of(TerraliteRegistries.ITEMS, "terralite:tools/stone_probe"));
         Biome plains = report.gameData().get(ResourceKey.of(TerraliteRegistries.BIOMES, "terralite:plains"));
@@ -64,15 +66,18 @@ class GameContentLoaderTest {
                 report.gameData().get(ResourceKey.of(TerraliteRegistries.CREATIVE_CATEGORIES, "terralite:scripted_tools"));
 
         assertEquals(List.of(ResourceId.id("terralite:base")), report.packs().stream().map(pack -> pack.manifest().id()).toList());
-        assertEquals(17, report.loadResult().scannedFiles());
-        assertEquals(13, report.loadResult().loadedFiles());
-        assertEquals(4, report.loadResult().skippedFiles().size());
+        assertEquals(22, report.loadResult().scannedFiles());
+        assertEquals(14, report.loadResult().loadedFiles());
+        assertEquals(8, report.loadResult().skippedFiles().size());
         assertEquals(1, report.startupScripts().executedScripts());
         assertEquals("Terralite base startup script loaded", report.startupScripts().messages().get(0).message());
         assertEquals("Stone", stone.properties().displayName());
         assertEquals(6.5f, stone.properties().resistance());
         assertEquals(ResourceId.id("terralite:block/cube_column"), grassBlock.properties().model().id());
         assertEquals(ResourceId.id("terralite:block/grass_block_top"), grassBlock.properties().textures().top());
+        assertEquals(ResourceId.id("terralite:block/double_stone"), doubleStone.properties().model().id());
+        assertEquals(3, wheat.properties().modelVariants().size());
+        assertEquals(ResourceId.id("terralite:block/wheat_stage7"), wheat.properties().modelVariants().get(2).model().id());
         assertEquals("terralite:crops/wheat", wheatSeeds.properties().placesBlock());
         assertEquals("Stone Probe", stoneProbe.properties().displayName());
         assertEquals(List.of(ResourceId.id("terralite:scripted_tools")), stoneProbe.properties().categories());
@@ -80,7 +85,8 @@ class GameContentLoaderTest {
         assertEquals(List.of(
                 ResourceId.id("terralite:natural/stone"),
                 ResourceId.id("terralite:natural/dirt"),
-                ResourceId.id("terralite:natural/grass_block")
+                ResourceId.id("terralite:natural/grass_block"),
+                ResourceId.id("terralite:natural/double_stone")
         ), naturalBlocks.members());
         assertEquals(List.of(ResourceId.id("terralite:tools/stone_probe")), scriptedItems.members());
         assertEquals(ResourceId.id("terralite:materials/stone_shard"), naturalItems.icon());

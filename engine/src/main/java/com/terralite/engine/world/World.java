@@ -25,6 +25,10 @@ public final class World implements WorldAccess {
         this(new InMemoryChunkStorage(), new InMemoryEntityManager(), new SparseBlockStorage());
     }
 
+    public World(BlockStorage blocks) {
+        this(new InMemoryChunkStorage(), new InMemoryEntityManager(), blocks);
+    }
+
     public World(ChunkStorage chunks) {
         this(chunks, new InMemoryEntityManager(), new SparseBlockStorage());
     }

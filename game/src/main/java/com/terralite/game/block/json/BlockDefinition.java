@@ -4,9 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.terralite.core.registry.ResourceId;
 import com.terralite.game.block.Block;
 import com.terralite.game.block.BlockModel;
+import com.terralite.game.block.BlockModelVariant;
+import com.terralite.game.block.BlockStateDefinition;
 import com.terralite.game.block.BlockTextures;
 
 import java.util.List;
+import java.util.Map;
 
 public record BlockDefinition(
     @JsonProperty("display_name")
@@ -26,6 +29,8 @@ public record BlockDefinition(
     String soundType,
     String model,
     TextureDefinition textures,
+    StateSchemaDefinition state,
+    List<StateDefinition> states,
     List<String> categories
 ) {
     public Block toBlock() {
@@ -39,6 +44,8 @@ public record BlockDefinition(
                 .material(defaultString(material, "stone"))
                 .soundType(defaultString(soundType, "stone"))
                 .model(parseModel(model))
+                .stateDefinition(parseStateDefinition(state))
+                .modelVariants(parseStates(states))
                 .categories(parseCategories(categories));
         BlockTextures parsedTextures = parseTextures(textures);
         if (parsedTextures != null) {
@@ -48,6 +55,16 @@ public record BlockDefinition(
     }
 
     public record TextureDefinition(String all, String top, String bottom, String side) {
+    }
+
+    public record StateSchemaDefinition(
+            Map<String, List<String>> properties,
+            @JsonProperty("default")
+            Map<String, String> defaultValues
+    ) {
+    }
+
+    public record StateDefinition(Map<String, String> when, String model, TextureDefinition textures) {
     }
 
     private static String defaultString(String value, String defaultValue) {
@@ -72,6 +89,29 @@ public record BlockDefinition(
                 parseNullableId(textures.top()),
                 parseNullableId(textures.bottom()),
                 parseNullableId(textures.side())
+        );
+    }
+
+    private static List<BlockModelVariant> parseStates(List<StateDefinition> states) {
+        if (states == null) {
+            return List.of();
+        }
+        return states.stream()
+                .map(state -> new BlockModelVariant(
+                        state.when(),
+                        parseModel(state.model()),
+                        parseTextures(state.textures())
+                ))
+                .toList();
+    }
+
+    private static BlockStateDefinition parseStateDefinition(StateSchemaDefinition state) {
+        if (state == null) {
+            return BlockStateDefinition.EMPTY;
+        }
+        return new BlockStateDefinition(
+                state.properties() == null ? Map.of() : state.properties(),
+                state.defaultValues() == null ? Map.of() : state.defaultValues()
         );
     }
 

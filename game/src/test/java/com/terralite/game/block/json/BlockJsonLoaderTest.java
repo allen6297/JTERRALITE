@@ -34,6 +34,23 @@ class BlockJsonLoaderTest {
               "textures": {
                 "all": "terralite:block/stone"
               },
+              "state": {
+                "properties": {
+                  "age": ["0", "1", "2", "3", "4", "5", "6", "7"]
+                },
+                "default": {
+                  "age": "0"
+                }
+              },
+              "states": [
+                {
+                  "when": { "age": "7" },
+                  "model": "terralite:block/wheat_stage7",
+                  "textures": {
+                    "all": "terralite:block/wheat_stage7"
+                  }
+                }
+              ],
               "categories": ["terralite:building_blocks"]
             }
             """;
@@ -53,6 +70,13 @@ class BlockJsonLoaderTest {
         assertEquals("stone", stone.properties().soundType());
         assertEquals(ResourceId.id("terralite:block/cube_all"), stone.properties().model().id());
         assertEquals(ResourceId.id("terralite:block/stone"), stone.properties().textures().all());
+        assertEquals(List.of("0", "1", "2", "3", "4", "5", "6", "7"),
+                stone.properties().stateDefinition().properties().get("age"));
+        assertEquals("0", stone.properties().stateDefinition().defaultValues().get("age"));
+        assertEquals(1, stone.properties().modelVariants().size());
+        assertEquals("7", stone.properties().modelVariants().getFirst().when().get("age"));
+        assertEquals(ResourceId.id("terralite:block/wheat_stage7"), stone.properties().modelVariants().getFirst().model().id());
+        assertEquals(ResourceId.id("terralite:block/wheat_stage7"), stone.properties().modelVariants().getFirst().textures().all());
         assertEquals(List.of(ResourceId.id("terralite:building_blocks")), stone.properties().categories());
     }
 

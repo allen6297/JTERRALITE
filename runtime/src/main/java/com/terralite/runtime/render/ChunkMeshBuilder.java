@@ -8,6 +8,8 @@ import com.terralite.engine.terrain.BlockPos;
 import com.terralite.engine.terrain.BlockState;
 import com.terralite.engine.world.World;
 import com.terralite.game.block.BlockModel;
+import com.terralite.game.block.BlockModelVariant;
+import com.terralite.game.block.BlockStateRegistry;
 import com.terralite.game.block.BlockTextures;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.render.RenderChunk;
@@ -28,11 +30,17 @@ public final class ChunkMeshBuilder {
     public static final int CHUNK_SIZE = 16;
     private final Map<ResourceId, BlockTextures> texturesByBlock;
     private final Map<ResourceId, BlockModel> modelsByBlock;
+    private final Map<ResourceId, List<BlockModelVariant>> variantsByBlock;
+    private final BlockStateRegistry blockStateRegistry;
+    private final Map<Integer, RenderModel> renderModelsByStateId;
     private final Map<ResourceId, ContentModelMesh> modelMeshes;
 
     public ChunkMeshBuilder() {
         this.texturesByBlock = Map.of();
         this.modelsByBlock = Map.of();
+        this.variantsByBlock = Map.of();
+        this.blockStateRegistry = null;
+        this.renderModelsByStateId = Map.of();
         this.modelMeshes = Map.of();
     }
 
@@ -53,6 +61,18 @@ public final class ChunkMeshBuilder {
                         Function.identity(),
                         id -> gameData.registry(TerraliteRegistries.BLOCKS).require(id).properties().model()
                 ));
+        this.variantsByBlock = gameData.registry(TerraliteRegistries.BLOCKS).ids().stream()
+                .filter(id -> !gameData.registry(TerraliteRegistries.BLOCKS).require(id).properties().modelVariants().isEmpty())
+                .collect(Collectors.toUnmodifiableMap(
+                        Function.identity(),
+                        id -> gameData.registry(TerraliteRegistries.BLOCKS).require(id).properties().modelVariants()
+                ));
+        this.blockStateRegistry = BlockStateRegistry.from(gameData);
+        this.renderModelsByStateId = this.blockStateRegistry.states().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        blockStateRegistry::requireId,
+                        this::resolveRenderModel
+                ));
         this.modelMeshes = Map.copyOf(Objects.requireNonNull(modelMeshes, "modelMeshes"));
     }
 
@@ -69,9 +89,7 @@ public final class ChunkMeshBuilder {
         int maxZ = minZ + CHUNK_SIZE;
 
         world.blocks().positions().stream()
-                .filter(pos -> pos.x() >= minX && pos.x() < maxX)
-                .filter(pos -> pos.y() >= minY && pos.y() < maxY)
-                .filter(pos -> pos.z() >= minZ && pos.z() < maxZ)
+                .filter(pos -> blockIntersectsChunk(world.getBlock(pos), pos, minX, minY, minZ, maxX, maxY, maxZ))
                 .sorted(Comparator
                         .comparingInt(BlockPos::x)
                         .thenComparingInt(BlockPos::y)
@@ -93,8 +111,9 @@ public final class ChunkMeshBuilder {
         float red = colorChannel(state, 0);
         float green = colorChannel(state, 37);
         float blue = colorChannel(state, 73);
-        BlockTextures textures = texturesByBlock.get(state.id());
-        ContentModelMesh modelMesh = modelMeshFor(state);
+        RenderModel renderModel = renderModelFor(state);
+        BlockTextures textures = renderModel.textures();
+        ContentModelMesh modelMesh = modelMeshes.get(renderModel.model().id());
         if (modelMesh != null) {
             addModelMesh(vertices, pos, modelMesh, red, green, blue, textures);
             return;
@@ -107,12 +126,64 @@ public final class ChunkMeshBuilder {
         }
     }
 
-    private ContentModelMesh modelMeshFor(BlockState state) {
+    private RenderModel renderModelFor(BlockState state) {
+        if (blockStateRegistry != null) {
+            var stateId = blockStateRegistry.id(state);
+            if (stateId.isPresent()) {
+                RenderModel renderModel = renderModelsByStateId.get(stateId.getAsInt());
+                if (renderModel != null) {
+                    return renderModel;
+                }
+            }
+        }
+        return resolveRenderModel(state);
+    }
+
+    private RenderModel resolveRenderModel(BlockState state) {
+        BlockTextures defaultTextures = texturesByBlock.get(state.id());
         BlockModel model = modelsByBlock.get(state.id());
         if (model == null) {
-            return null;
+            model = BlockModel.CUBE_ALL;
         }
-        return modelMeshes.get(model.id());
+        for (BlockModelVariant variant : variantsByBlock.getOrDefault(state.id(), List.of())) {
+            if (variant.matches(state)) {
+                return new RenderModel(
+                        variant.model(),
+                        variant.textures() != null ? variant.textures() : defaultTextures
+                );
+            }
+        }
+        return new RenderModel(model, defaultTextures);
+    }
+
+    private boolean blockIntersectsChunk(
+            BlockState state,
+            BlockPos pos,
+            int minX,
+            int minY,
+            int minZ,
+            int maxX,
+            int maxY,
+            int maxZ
+    ) {
+        if (state.isAir()) {
+            return false;
+        }
+        RenderModel renderModel = renderModelFor(state);
+        ContentModelMesh modelMesh = modelMeshes.get(renderModel.model().id());
+        float blockMinX = pos.x() + (modelMesh != null ? modelMesh.minX() : 0.0f);
+        float blockMinY = pos.y() + (modelMesh != null ? modelMesh.minY() : 0.0f);
+        float blockMinZ = pos.z() + (modelMesh != null ? modelMesh.minZ() : 0.0f);
+        float blockMaxX = pos.x() + (modelMesh != null ? modelMesh.maxX() : 1.0f);
+        float blockMaxY = pos.y() + (modelMesh != null ? modelMesh.maxY() : 1.0f);
+        float blockMaxZ = pos.z() + (modelMesh != null ? modelMesh.maxZ() : 1.0f);
+
+        return blockMaxX > minX && blockMinX < maxX
+                && blockMaxY > minY && blockMinY < maxY
+                && blockMaxZ > minZ && blockMinZ < maxZ;
+    }
+
+    private record RenderModel(BlockModel model, BlockTextures textures) {
     }
 
     private static void addModelMesh(

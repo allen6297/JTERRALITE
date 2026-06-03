@@ -1,0 +1,13 @@
+{
+  "display_name": "Double Stone",
+  "hardness": 1.5,
+  "resistance": 6.5,
+  "solid": true,
+  "material": "stone",
+  "sound_type": "stone",
+  "model": "terralite:block/double_stone",
+  "textures": {
+    "all": "terralite:block/stone"
+  },
+  "categories": ["terralite:building_blocks"]
+}

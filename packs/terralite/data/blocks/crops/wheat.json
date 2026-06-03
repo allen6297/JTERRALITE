@@ -10,5 +10,27 @@
   "textures": {
     "all": "terralite:block/wheat"
   },
+  "state": {
+    "properties": {
+      "age": ["0", "1", "2", "3", "4", "5", "6", "7"]
+    },
+    "default": {
+      "age": "0"
+    }
+  },
+  "states": [
+    {
+      "when": { "age": "0" },
+      "model": "terralite:block/wheat_stage0"
+    },
+    {
+      "when": { "age": "3" },
+      "model": "terralite:block/wheat_stage3"
+    },
+    {
+      "when": { "age": "7" },
+      "model": "terralite:block/wheat_stage7"
+    }
+  ],
   "categories": ["terralite:natural_items"]
 }

@@ -5,6 +5,8 @@ import com.terralite.core.registry.ResourceId;
 import com.terralite.engine.chunk.ChunkPos;
 import com.terralite.engine.terrain.BlockPos;
 import com.terralite.engine.terrain.BlockState;
+import com.terralite.engine.terrain.CompactBlockStorage;
+import com.terralite.game.block.Block;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.worldsgen.WorldsgenSpawnArea;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,8 @@ class RuntimeWorldFactoryTest {
     @Test
     void createsWorldChunksFromSpawnAreaRegistry() {
         RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:natural/grass_block"), Block.builder().build());
         registries.create(TerraliteRegistries.WORLDSGEN_SPAWN_AREAS)
                 .register(ResourceId.id("example:spawn_area"), WorldsgenSpawnArea.builder()
                         .center(2, 1, -3)
@@ -32,6 +36,7 @@ class RuntimeWorldFactoryTest {
         assertTrue(world.containsChunk(ChunkPos.of(2, 1, -3)));
         assertTrue(world.containsChunk(ChunkPos.of(2, 2, -3)));
         assertEquals(BlockState.of("terralite:natural/grass_block"), world.getBlock(BlockPos.of(32, 0, -48)));
+        assertTrue(world.blocks() instanceof CompactBlockStorage);
     }
 
     @Test

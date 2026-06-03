@@ -17,4 +17,40 @@ public record ContentModelMesh(List<ContentModelVertex> vertices) {
     public int triangleCount() {
         return vertices.size() / 3;
     }
+
+    public float minX() {
+        return vertices.stream().map(ContentModelVertex::x).min(Float::compare).orElseThrow();
+    }
+
+    public float minY() {
+        return vertices.stream().map(ContentModelVertex::y).min(Float::compare).orElseThrow();
+    }
+
+    public float minZ() {
+        return vertices.stream().map(ContentModelVertex::z).min(Float::compare).orElseThrow();
+    }
+
+    public float maxX() {
+        return vertices.stream().map(ContentModelVertex::x).max(Float::compare).orElseThrow();
+    }
+
+    public float maxY() {
+        return vertices.stream().map(ContentModelVertex::y).max(Float::compare).orElseThrow();
+    }
+
+    public float maxZ() {
+        return vertices.stream().map(ContentModelVertex::z).max(Float::compare).orElseThrow();
+    }
+
+    public float width() {
+        return maxX() - minX();
+    }
+
+    public float height() {
+        return maxY() - minY();
+    }
+
+    public float depth() {
+        return maxZ() - minZ();
+    }
 }
