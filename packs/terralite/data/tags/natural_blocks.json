@@ -3,6 +3,7 @@
   "members": [
     "terralite:natural/stone",
     "terralite:natural/dirt",
-    "terralite:natural/grass_block"
+    "terralite:natural/grass_block",
+    "terralite:natural/double_stone"
   ]
 }

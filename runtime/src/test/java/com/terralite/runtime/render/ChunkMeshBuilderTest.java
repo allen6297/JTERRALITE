@@ -8,9 +8,13 @@ import com.terralite.engine.chunk.Chunk;
 import com.terralite.engine.chunk.ChunkPos;
 import com.terralite.engine.terrain.BlockPos;
 import com.terralite.engine.terrain.BlockState;
+import com.terralite.engine.terrain.MultiblockBlockStorage;
+import com.terralite.engine.terrain.SparseBlockStorage;
 import com.terralite.engine.world.World;
 import com.terralite.game.block.Block;
 import com.terralite.game.block.BlockModel;
+import com.terralite.game.block.BlockModelVariant;
+import com.terralite.game.block.BlockStateDefinition;
 import com.terralite.game.block.BlockTextures;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.render.RenderChunk;
@@ -134,5 +138,107 @@ class ChunkMeshBuilderTest {
         assertEquals(topTexture, mesh.mesh().vertices().get(0).texture());
         assertEquals(bottomTexture, mesh.mesh().vertices().get(1).texture());
         assertEquals(sideTexture, mesh.mesh().vertices().get(2).texture());
+    }
+
+    @Test
+    void blockStateVariantSelectsRenderedModelAndTextures() {
+        ResourceId defaultModelId = ResourceId.id("terralite:block/crop_stage0");
+        ResourceId matureModelId = ResourceId.id("terralite:block/crop_stage7");
+        ResourceId defaultTexture = ResourceId.id("terralite:block/crop_stage0");
+        ResourceId matureTexture = ResourceId.id("terralite:block/crop_stage7");
+        RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:wheat"), Block.builder()
+                        .model(new BlockModel(defaultModelId))
+                        .textures(BlockTextures.all(defaultTexture))
+                        .stateDefinition(new BlockStateDefinition(
+                                Map.of("age", List.of("0", "7")),
+                                Map.of("age", "0")
+                        ))
+                        .modelVariant(new BlockModelVariant(
+                                Map.of("age", "7"),
+                                new BlockModel(matureModelId),
+                                BlockTextures.all(matureTexture)
+                        ))
+                        .build());
+        ContentModelMesh defaultMesh = new ContentModelMesh(List.of(
+                new ContentModelVertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
+                new ContentModelVertex(0.5f, 0.0f, 0.0f, 1.0f, 0.0f),
+                new ContentModelVertex(0.0f, 0.5f, 0.0f, 0.0f, 1.0f)
+        ));
+        ContentModelMesh matureMesh = new ContentModelMesh(List.of(
+                new ContentModelVertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
+                new ContentModelVertex(1.0f, 0.0f, 0.0f, 1.0f, 0.0f),
+                new ContentModelVertex(0.0f, 1.0f, 0.0f, 0.0f, 1.0f)
+        ));
+        ChunkMeshBuilder modelBuilder = new ChunkMeshBuilder(registries.freeze(), Map.of(
+                defaultModelId, defaultMesh,
+                matureModelId, matureMesh
+        ));
+        World world = new World();
+        world.putChunk(new Chunk(ChunkPos.of(0, 0, 0)));
+        world.setBlock(BlockPos.of(0, 0, 0), BlockState.of("terralite:wheat").with("age", "7"));
+
+        var mesh = modelBuilder.build(world, new RenderChunk(0, 0, 0)).orElseThrow();
+
+        assertEquals(3, mesh.mesh().vertices().size());
+        assertEquals(1.0f, mesh.mesh().vertices().get(1).x());
+        assertEquals(matureTexture, mesh.mesh().vertices().get(0).texture());
+    }
+
+    @Test
+    void multiblockModelBoundsCanReachNeighboringChunks() {
+        ResourceId modelId = ResourceId.id("terralite:block/double_wide");
+        RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:double_wide"), Block.builder()
+                        .model(new BlockModel(modelId))
+                        .textures(BlockTextures.all(ResourceId.id("terralite:block/stone")))
+                        .build());
+        ContentModelMesh modelMesh = new ContentModelMesh(List.of(
+                new ContentModelVertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
+                new ContentModelVertex(2.0f, 0.0f, 0.0f, 1.0f, 0.0f),
+                new ContentModelVertex(0.0f, 1.0f, 0.0f, 0.0f, 1.0f)
+        ));
+        ChunkMeshBuilder modelBuilder = new ChunkMeshBuilder(registries.freeze(), Map.of(modelId, modelMesh));
+        World world = new World();
+        world.putChunk(new Chunk(ChunkPos.of(0, 0, 0)));
+        world.putChunk(new Chunk(ChunkPos.of(1, 0, 0)));
+        world.setBlock(BlockPos.of(15, 0, 0), BlockState.of("terralite:double_wide"));
+
+        var mesh = modelBuilder.build(world, new RenderChunk(1, 0, 0)).orElseThrow();
+
+        assertEquals(3, mesh.mesh().vertices().size());
+        assertEquals(17.0f, mesh.mesh().vertices().get(1).x());
+    }
+
+    @Test
+    void multiblockStorageRendersOnlyOriginCells() {
+        ResourceId modelId = ResourceId.id("terralite:block/double_wide");
+        RegistryManager registries = new RegistryManager();
+        registries.create(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:double_wide"), Block.builder()
+                        .model(new BlockModel(modelId))
+                        .textures(BlockTextures.all(ResourceId.id("terralite:block/stone")))
+                        .build());
+        ContentModelMesh modelMesh = new ContentModelMesh(List.of(
+                new ContentModelVertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
+                new ContentModelVertex(2.0f, 0.0f, 0.0f, 1.0f, 0.0f),
+                new ContentModelVertex(0.0f, 1.0f, 0.0f, 0.0f, 1.0f)
+        ));
+        ChunkMeshBuilder modelBuilder = new ChunkMeshBuilder(registries.freeze(), Map.of(modelId, modelMesh));
+        World world = new World(new MultiblockBlockStorage(new SparseBlockStorage(), state -> {
+            if (state.id().toString().equals("terralite:double_wide")) {
+                return List.of(BlockPos.of(0, 0, 0), BlockPos.of(1, 0, 0));
+            }
+            return List.of(BlockPos.of(0, 0, 0));
+        }));
+        world.putChunk(new Chunk(ChunkPos.of(0, 0, 0)));
+        world.setBlock(BlockPos.of(0, 0, 0), BlockState.of("terralite:double_wide"));
+
+        var mesh = modelBuilder.build(world, new RenderChunk(0, 0, 0)).orElseThrow();
+
+        assertEquals(3, mesh.mesh().vertices().size());
+        assertEquals(List.of(BlockPos.of(0, 0, 0)), List.copyOf(world.blocks().positions()));
     }
 }

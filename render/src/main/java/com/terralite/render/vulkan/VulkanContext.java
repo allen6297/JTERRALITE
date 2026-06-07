@@ -19,7 +19,7 @@ import static org.lwjgl.vulkan.VK10.*;
  * thread-local stack through accumulated allocations.
  */
 public final class VulkanContext {
-    static final boolean VALIDATION = true;
+    static final boolean VALIDATION = Boolean.getBoolean("terralite.vulkan.validation");
     private static final String VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
 
     private final VkInstance instance;
@@ -32,6 +32,7 @@ public final class VulkanContext {
     public final VkQueue presentQueue;
     public final int graphicsFamily;
     public final int presentFamily;
+    private final long transferCommandPool;
 
     private VulkanContext(
             VkInstance instance,
@@ -43,7 +44,8 @@ public final class VulkanContext {
             VkQueue graphicsQueue,
             VkQueue presentQueue,
             int graphicsFamily,
-            int presentFamily
+            int presentFamily,
+            long transferCommandPool
     ) {
         this.instance = instance;
         this.debugCallbackHandle = debugCallbackHandle;
@@ -55,6 +57,11 @@ public final class VulkanContext {
         this.presentQueue = presentQueue;
         this.graphicsFamily = graphicsFamily;
         this.presentFamily = presentFamily;
+        this.transferCommandPool = transferCommandPool;
+    }
+
+    public long transferCommandPool() {
+        return transferCommandPool;
     }
 
     public static VulkanContext create(long windowHandle) {
@@ -85,13 +92,26 @@ public final class VulkanContext {
         VkDevice device = createDevice(physicalDevice, graphicsFamily, presentFamily, validationActive);
         VkQueue graphicsQueue = getQueue(device, graphicsFamily);
         VkQueue presentQueue = getQueue(device, presentFamily);
+        long transferCommandPool = createTransferCommandPool(device, graphicsFamily);
 
-        return new VulkanContext(instance, callbackHandle, debugMessenger, surface,
-                physicalDevice, device, graphicsQueue, presentQueue, graphicsFamily, presentFamily);
+        return new VulkanContext(
+                instance,
+                callbackHandle,
+                debugMessenger,
+                surface,
+                physicalDevice,
+                device,
+                graphicsQueue,
+                presentQueue,
+                graphicsFamily,
+                presentFamily,
+                transferCommandPool
+        );
     }
 
     public void destroy() {
         vkDeviceWaitIdle(device);
+        vkDestroyCommandPool(device, transferCommandPool, null);
         vkDestroyDevice(device, null);
         vkDestroySurfaceKHR(instance, surface, null);
         if (debugMessenger != VK_NULL_HANDLE) {
@@ -103,8 +123,6 @@ public final class VulkanContext {
         vkDestroyInstance(instance, null);
     }
 
-    // ---- private setup helpers — each manages its own MemoryStack frame ----
-
     private static boolean isLayerAvailable(String layerName) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer countBuf = stack.mallocInt(1);
@@ -112,7 +130,9 @@ public final class VulkanContext {
             VkLayerProperties.Buffer layers = VkLayerProperties.malloc(countBuf.get(0), stack);
             vkEnumerateInstanceLayerProperties(countBuf, layers);
             for (VkLayerProperties layer : layers) {
-                if (layerName.equals(layer.layerNameString())) return true;
+                if (layerName.equals(layer.layerNameString())) {
+                    return true;
+                }
             }
             return false;
         }
@@ -164,16 +184,22 @@ public final class VulkanContext {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             VkDebugUtilsMessengerCreateInfoEXT info = VkDebugUtilsMessengerCreateInfoEXT.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT)
-                    .messageSeverity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-                    .messageType(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+                    .messageSeverity(
+                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
+                    )
+                    .messageType(
+                            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
+                    )
                     .pfnUserCallback(cb);
 
             LongBuffer messengerPtr = stack.mallocLong(1);
-            VulkanUtils.check(EXTDebugUtils.vkCreateDebugUtilsMessengerEXT(instance, info, null, messengerPtr),
-                    "Failed to create debug messenger");
+            VulkanUtils.check(
+                    EXTDebugUtils.vkCreateDebugUtilsMessengerEXT(instance, info, null, messengerPtr),
+                    "Failed to create debug messenger"
+            );
             return messengerPtr.get(0);
         }
     }
@@ -181,8 +207,10 @@ public final class VulkanContext {
     private static long createSurface(VkInstance instance, long windowHandle) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             LongBuffer surfacePtr = stack.mallocLong(1);
-            VulkanUtils.check(GLFWVulkan.glfwCreateWindowSurface(instance, windowHandle, null, surfacePtr),
-                    "Failed to create window surface");
+            VulkanUtils.check(
+                    GLFWVulkan.glfwCreateWindowSurface(instance, windowHandle, null, surfacePtr),
+                    "Failed to create window surface"
+            );
             return surfacePtr.get(0);
         }
     }
@@ -192,7 +220,9 @@ public final class VulkanContext {
             IntBuffer countBuf = stack.mallocInt(1);
             vkEnumeratePhysicalDevices(instance, countBuf, null);
             int count = countBuf.get(0);
-            if (count == 0) throw new IllegalStateException("No Vulkan-capable GPU found");
+            if (count == 0) {
+                throw new IllegalStateException("No Vulkan-capable GPU found");
+            }
 
             PointerBuffer devices = stack.mallocPointer(count);
             vkEnumeratePhysicalDevices(instance, countBuf, devices);
@@ -208,6 +238,7 @@ public final class VulkanContext {
                     return candidate;
                 }
             }
+
             throw new IllegalStateException("No suitable Vulkan GPU found");
         }
     }
@@ -220,7 +251,6 @@ public final class VulkanContext {
             return false;
         }
 
-        // Use heap allocation — extension count can be large (200+) and would exhaust the stack
         IntBuffer extCount = MemoryUtil.memAllocInt(1);
         try {
             vkEnumerateDeviceExtensionProperties(device, (String) null, extCount, null);
@@ -242,8 +272,11 @@ public final class VulkanContext {
     }
 
     private static int findQueueFamily(
-            VkPhysicalDevice device, int requiredFlags, int excludeFamily,
-            long surface, boolean requirePresent
+            VkPhysicalDevice device,
+            int requiredFlags,
+            int excludeFamily,
+            long surface,
+            boolean requirePresent
     ) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer countBuf = stack.mallocInt(1);
@@ -253,22 +286,35 @@ public final class VulkanContext {
 
             IntBuffer presentSupport = stack.mallocInt(1);
             for (int i = 0; i < families.capacity(); i++) {
-                if (i == excludeFamily) continue;
+                if (i == excludeFamily) {
+                    continue;
+                }
+
                 boolean flagsOk = requiredFlags == 0 || (families.get(i).queueFlags() & requiredFlags) != 0;
-                if (!flagsOk) continue;
+                if (!flagsOk) {
+                    continue;
+                }
 
                 if (requirePresent) {
                     vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, presentSupport);
-                    if (presentSupport.get(0) != VK_TRUE) continue;
+                    if (presentSupport.get(0) != VK_TRUE) {
+                        continue;
+                    }
                 }
+
                 return i;
             }
+
             throw new IllegalStateException("Required queue family not found");
         }
     }
 
-    private static VkDevice createDevice(VkPhysicalDevice physicalDevice, int graphicsFamily,
-                                          int presentFamily, boolean validationActive) {
+    private static VkDevice createDevice(
+            VkPhysicalDevice physicalDevice,
+            int graphicsFamily,
+            int presentFamily,
+            boolean validationActive
+    ) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             boolean sameFamily = graphicsFamily == presentFamily;
             int queueCount = sameFamily ? 1 : 2;
@@ -278,6 +324,7 @@ public final class VulkanContext {
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                     .queueFamilyIndex(graphicsFamily)
                     .pQueuePriorities(stack.floats(1.0f));
+
             if (!sameFamily) {
                 queueInfos.get(1)
                         .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
@@ -303,6 +350,19 @@ public final class VulkanContext {
             PointerBuffer devicePtr = stack.mallocPointer(1);
             VulkanUtils.check(vkCreateDevice(physicalDevice, createInfo, null, devicePtr), "Failed to create logical device");
             return new VkDevice(devicePtr.get(0), physicalDevice, createInfo);
+        }
+    }
+
+    private static long createTransferCommandPool(VkDevice device, int family) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            VkCommandPoolCreateInfo poolInfo = VkCommandPoolCreateInfo.calloc(stack)
+                    .sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
+                    .flags(VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
+                    .queueFamilyIndex(family);
+
+            LongBuffer poolPtr = stack.mallocLong(1);
+            VulkanUtils.check(vkCreateCommandPool(device, poolInfo, null, poolPtr), "Failed to create transfer command pool");
+            return poolPtr.get(0);
         }
     }
 

@@ -7,14 +7,32 @@ import com.terralite.engine.world.World;
 import com.terralite.game.registry.TerraliteRegistries;
 import com.terralite.game.worldsgen.WorldsgenSpawnArea;
 import com.terralite.engine.terrain.BlockPos;
+import com.terralite.engine.terrain.BlockStorage;
 import com.terralite.engine.terrain.BlockState;
+import com.terralite.engine.terrain.MultiblockBlockStorage;
+import com.terralite.game.block.BlockStateRegistry;
+import com.terralite.game.block.BlockOccupancy;
 
 import java.util.Objects;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public final class RuntimeWorldFactory {
     public static final int CHUNK_SIZE = 16;
     public static final ResourceId DEFAULT_SPAWN_AREA = ResourceId.id("terralite:spawn_area");
     public static final ResourceId DEFAULT_SURFACE_BLOCK = ResourceId.id("terralite:natural/grass_block");
+
+    /** Creates a world with proper block storage but no terrain — for use with {@link com.terralite.runtime.terrain.TerrainGeneratorSystem}. */
+    public World createEmpty(GameData gameData) {
+        Objects.requireNonNull(gameData, "gameData");
+        try {
+            BlockStateRegistry stateRegistry = BlockStateRegistry.from(gameData);
+            return new World(createBlockStorage(gameData, stateRegistry));
+        } catch (IllegalArgumentException e) {
+            return new World();
+        }
+    }
 
     public World create(GameData gameData) {
         return create(gameData, DEFAULT_SPAWN_AREA);
@@ -27,7 +45,13 @@ public final class RuntimeWorldFactory {
         WorldsgenSpawnArea spawnArea = gameData.registry(TerraliteRegistries.WORLDSGEN_SPAWN_AREAS)
                 .get(spawnAreaId)
                 .orElseGet(() -> WorldsgenSpawnArea.builder().build());
-        return create(spawnArea, new BlockState(resolveSurfaceBlock(gameData)));
+        try {
+            BlockStateRegistry stateRegistry = BlockStateRegistry.from(gameData);
+            BlockState surfaceBlock = stateRegistry.defaultState(resolveSurfaceBlock(gameData));
+            return create(spawnArea, surfaceBlock, new World(createBlockStorage(gameData, stateRegistry)));
+        } catch (IllegalArgumentException exception) {
+            return create(spawnArea, new BlockState(resolveSurfaceBlock(gameData)));
+        }
     }
 
     public World create(WorldsgenSpawnArea spawnArea) {
@@ -39,6 +63,14 @@ public final class RuntimeWorldFactory {
         Objects.requireNonNull(surfaceBlock, "surfaceBlock");
 
         World world = new World();
+        return create(spawnArea, surfaceBlock, world);
+    }
+
+    private World create(WorldsgenSpawnArea spawnArea, BlockState surfaceBlock, World world) {
+        Objects.requireNonNull(spawnArea, "spawnArea");
+        Objects.requireNonNull(surfaceBlock, "surfaceBlock");
+        Objects.requireNonNull(world, "world");
+
         for (var pos : spawnArea.chunkPositions()) {
             world.putChunk(new Chunk(pos));
             fillSurface(world, pos.x(), pos.y(), pos.z(), surfaceBlock);
@@ -69,5 +101,17 @@ public final class RuntimeWorldFactory {
         } catch (IllegalArgumentException exception) {
             return DEFAULT_SURFACE_BLOCK;
         }
+    }
+
+    private static BlockStorage createBlockStorage(GameData gameData, BlockStateRegistry stateRegistry) {
+        Map<ResourceId, BlockOccupancy> occupancyByBlock = gameData.registry(TerraliteRegistries.BLOCKS).ids().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        Function.identity(),
+                        id -> gameData.registry(TerraliteRegistries.BLOCKS).require(id).properties().occupancy()
+                ));
+        return new MultiblockBlockStorage(
+                stateRegistry.createStorage(),
+                state -> occupancyByBlock.getOrDefault(state.id(), BlockOccupancy.SINGLE).offsetsFor(state)
+        );
     }
 }

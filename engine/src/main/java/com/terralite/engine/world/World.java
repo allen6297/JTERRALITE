@@ -7,12 +7,16 @@ import com.terralite.engine.chunk.InMemoryChunkStorage;
 import com.terralite.engine.entity.EntityManager;
 import com.terralite.engine.entity.EntitySpawner;
 import com.terralite.engine.entity.InMemoryEntityManager;
+import com.terralite.engine.physics.Aabb;
 import com.terralite.engine.terrain.BlockPos;
 import com.terralite.engine.terrain.BlockState;
 import com.terralite.engine.terrain.BlockStorage;
+import com.terralite.engine.terrain.MultiblockBlockStorage;
 import com.terralite.engine.terrain.SparseBlockStorage;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -23,6 +27,10 @@ public final class World implements WorldAccess {
 
     public World() {
         this(new InMemoryChunkStorage(), new InMemoryEntityManager(), new SparseBlockStorage());
+    }
+
+    public World(BlockStorage blocks) {
+        this(new InMemoryChunkStorage(), new InMemoryEntityManager(), blocks);
     }
 
     public World(ChunkStorage chunks) {
@@ -63,6 +71,27 @@ public final class World implements WorldAccess {
         blocks.set(pos, state);
     }
 
+    public BlockState removeBlock(BlockPos pos) {
+        return blocks.remove(pos);
+    }
+
+    public Collection<BlockPos> collisionBlockPositions() {
+        if (blocks instanceof MultiblockBlockStorage multiblockBlocks) {
+            List<BlockPos> positions = new ArrayList<>();
+            for (BlockPos origin : multiblockBlocks.positions()) {
+                positions.addAll(multiblockBlocks.occupiedPositions(origin));
+            }
+            return List.copyOf(positions);
+        }
+        return blocks.positions();
+    }
+
+    public Collection<Aabb> blockCollisionBoxes() {
+        return collisionBlockPositions().stream()
+                .map(World::blockBounds)
+                .toList();
+    }
+
     public Chunk putChunk(Chunk chunk) {
         return chunks.put(chunk);
     }
@@ -89,5 +118,9 @@ public final class World implements WorldAccess {
     @Override
     public Collection<ChunkPos> chunkPositions() {
         return chunks.positions();
+    }
+
+    private static Aabb blockBounds(BlockPos pos) {
+        return new Aabb(pos.x(), pos.y(), pos.z(), pos.x() + 1.0, pos.y() + 1.0, pos.z() + 1.0);
     }
 }

@@ -9,6 +9,8 @@ import com.terralite.core.registry.RegistryKey;
 import com.terralite.core.registry.ResourceId;
 import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
+import com.terralite.game.block.BlockModelVariant;
+import com.terralite.game.block.BlockStateDefinition;
 import com.terralite.game.block.BlockTextures;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
@@ -42,6 +44,7 @@ public final class GameContentValidator {
         validateBiomeSurface(biomes, blocks, issues);
         validateTagMembers(tags, blocks, items, issues);
         validateSpawnAreas(spawnAreas, issues);
+        validateBlockStates(blocks, issues);
         validateBlockAssets(blocks, assets, issues);
 
         if (categories != null) {
@@ -51,6 +54,53 @@ public final class GameContentValidator {
         }
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void validateBlockStates(FrozenRegistry<Block> blocks, List<ContentValidationIssue> issues) {
+        if (blocks == null) {
+            return;
+        }
+        for (ResourceId blockId : blocks.ids()) {
+            Block block = blocks.require(blockId);
+            BlockStateDefinition stateDefinition = block.properties().stateDefinition();
+            for (String property : stateDefinition.properties().keySet()) {
+                if (!stateDefinition.defaultValues().containsKey(property)) {
+                    issues.add(ContentValidationIssue.of(
+                            "block.state.default.missing",
+                            "Block " + blockId + " state property " + property + " has no default value"
+                    ));
+                }
+            }
+            for (BlockModelVariant variant : block.properties().modelVariants()) {
+                validateVariantPredicate(blockId, stateDefinition, variant, issues);
+            }
+        }
+    }
+
+    private static void validateVariantPredicate(
+            ResourceId blockId,
+            BlockStateDefinition stateDefinition,
+            BlockModelVariant variant,
+            List<ContentValidationIssue> issues
+    ) {
+        for (var entry : variant.when().entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .toList()) {
+            if (!stateDefinition.properties().containsKey(entry.getKey())) {
+                issues.add(ContentValidationIssue.of(
+                        "block.state.property.unknown",
+                        "Block " + blockId + " variant references undeclared state property " + entry.getKey()
+                ));
+                continue;
+            }
+            if (!stateDefinition.isAllowed(entry.getKey(), entry.getValue())) {
+                issues.add(ContentValidationIssue.of(
+                        "block.state.value.invalid",
+                        "Block " + blockId + " variant value " + entry.getValue()
+                                + " is not allowed for state property " + entry.getKey()
+                ));
+            }
+        }
     }
 
     private static void validateBlockAssets(
@@ -78,6 +128,31 @@ public final class GameContentValidator {
             validateTexture(blockId, "top", textures.top(), assets, issues);
             validateTexture(blockId, "bottom", textures.bottom(), assets, issues);
             validateTexture(blockId, "side", textures.side(), assets, issues);
+            validateBlockModelVariants(blockId, block.properties().modelVariants(), assets, issues);
+        }
+    }
+
+    private static void validateBlockModelVariants(
+            ResourceId blockId,
+            List<BlockModelVariant> variants,
+            ContentAssetIndex assets,
+            List<ContentValidationIssue> issues
+    ) {
+        for (BlockModelVariant variant : variants) {
+            ResourceId modelId = variant.model().id();
+            if (assets.findModel(modelId).isEmpty()) {
+                issues.add(ContentValidationIssue.of(
+                        "block.model.missing",
+                        "Block " + blockId + " state variant references missing model asset " + modelId
+                ));
+            }
+            BlockTextures textures = variant.textures();
+            if (textures != null) {
+                validateTexture(blockId, "variant all", textures.all(), assets, issues);
+                validateTexture(blockId, "variant top", textures.top(), assets, issues);
+                validateTexture(blockId, "variant bottom", textures.bottom(), assets, issues);
+                validateTexture(blockId, "variant side", textures.side(), assets, issues);
+            }
         }
     }
 

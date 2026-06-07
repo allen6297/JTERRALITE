@@ -164,7 +164,7 @@ packs/example/
 
 Block models live under `assets/models/` and are referenced from block JSON with
 resource ids such as `terralite:block/cube_all`. The current render mesh loader
-supports three Terralite JSON model types:
+supports these Terralite JSON model types:
 
 ```json
 { "type": "cube_all" }
@@ -182,11 +182,106 @@ Uses `textures.top` for the up face, `textures.bottom` for the down face, and
 `textures.side` for horizontal faces, with the normal block texture fallbacks.
 
 ```json
-{ "type": "cross" }
+{ "type": "cross", "width": 1.0, "height": 1.0 }
 ```
 
-Renders two double-sided crossed quads using `textures.all`. This is intended
-for plant-like blocks such as wheat.
+Renders two double-sided crossed quads using `textures.all`. `width` and
+`height` are optional and default to `1.0`, which is useful for plant growth
+states such as wheat.
+
+```json
+{
+  "type": "elements",
+  "elements": [
+    {
+      "from": [0.0, 0.0, 0.0],
+      "to": [2.0, 1.0, 1.0],
+      "faces": {
+        "north": { "texture": "#all" },
+        "south": { "texture": "#all" },
+        "east": { "texture": "#all" },
+        "west": { "texture": "#all" },
+        "up": { "texture": "#all" },
+        "down": { "texture": "#all" }
+      }
+    }
+  ]
+}
+```
+
+Renders box elements with `from` and `to` coordinates in block-local units.
+Values can extend outside `0.0..1.0` for multiblock-sized models; mesh bounds
+are tracked so neighboring chunks can consider geometry that crosses a chunk
+edge.
+
+Blocks can choose state-specific render variants:
+
+```json
+"state": {
+  "properties": {
+    "age": ["0", "1", "2", "3", "4", "5", "6", "7"]
+  },
+  "default": {
+    "age": "0"
+  }
+},
+"states": [
+  {
+    "when": { "age": "7" },
+    "model": "terralite:block/wheat_stage7"
+  }
+]
+```
+
+Every property used by a render variant must be declared in `state.properties`,
+and every declared property must have a default value. Pack validation reports
+undeclared properties as `block.state.property.unknown`, invalid values as
+`block.state.value.invalid`, and missing defaults as
+`block.state.default.missing`.
+
+Multiblock-sized blocks can declare occupied cells in block JSON:
+
+```json
+"occupancy": [
+  [0, 0, 0],
+  [1, 0, 0]
+]
+```
+
+For state-driven orientation, use the object form:
+
+```json
+"state": {
+  "properties": {
+    "facing": ["north", "east", "south", "west"]
+  },
+  "default": {
+    "facing": "north"
+  }
+},
+"occupancy": {
+  "rotates_with": "facing",
+  "offsets": [
+    [0, 0, 0],
+    [1, 0, 0]
+  ]
+}
+```
+
+The origin offset `[0, 0, 0]` is required. Runtime worlds created from
+`GameData` use multiblock-aware block storage: placement fails if any occupied
+cell is already claimed, child cells resolve back to the origin block state,
+removing any occupied cell removes the whole multiblock, and render iteration
+only visits origin cells. `rotates_with` currently rotates occupancy around the
+origin from the north-facing offset layout; model mesh rotation is a separate
+rendering step.
+
+World snapshots capture chunks, entity ids, and origin blocks. Block snapshots
+include the block id, state properties, and an optional compact state id when
+the backing storage exposes one. `WorldSnapshotJsonCodec` can read and write
+these snapshots as JSON files. Restoring into multiblock-aware storage replays
+only origin blocks, so occupied child cells are rebuilt from block occupancy
+metadata instead of being saved redundantly.
 
 Unknown or missing Terralite JSON model types fail during model mesh loading
 with a message that includes the model id and file path.

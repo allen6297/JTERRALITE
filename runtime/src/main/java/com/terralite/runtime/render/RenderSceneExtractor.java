@@ -65,21 +65,21 @@ public final class RenderSceneExtractor {
         return scene.build();
     }
 
-    private static RenderCamera toRenderCamera(Camera camera) {
+    static RenderCamera toRenderCamera(Camera camera) {
         Transform transform = camera.transform();
         return new RenderCamera(
-                transform.x(),
-                transform.y(),
-                transform.z(),
-                camera.fovDegrees(),
-                camera.nearPlane(),
-                camera.farPlane(),
-                camera.yaw(),
-                camera.pitch()
+                (float) transform.x(),
+                (float) transform.y(),
+                (float) transform.z(),
+                (float) camera.fovDegrees(),
+                (float) camera.nearPlane(),
+                (float) camera.farPlane(),
+                (float) camera.yaw(),
+                (float) camera.pitch()
         );
     }
 
-    private static void addEntityObject(RenderScene.Builder scene, Entity entity) {
+    static void addEntityObject(RenderScene.Builder scene, Entity entity) {
         entity.get(PhysicsComponents.TRANSFORM)
                 .map(transform -> RenderObject.of(
                         "terralite:entity/" + entity.id().value(),

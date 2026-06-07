@@ -18,7 +18,10 @@ public final class Matrix4f {
     }
 
     /**
-     * Right-hand perspective projection (OpenGL NDC -1 to 1 Z range).
+     * Vulkan perspective projection (Y-flipped, depth range 0..1).
+     *
+     * <p>Vulkan NDC has Y+ pointing down, so m[5] is negated relative to the
+     * OpenGL convention. Depth is remapped to [0, 1].
      *
      * @param fovYRadians vertical field of view in radians
      * @param aspect      viewport width / height
@@ -31,10 +34,10 @@ public final class Matrix4f {
 
         float[] m = new float[16];
         m[0]  = f / aspect;
-        m[5]  = f;
-        m[10] = (far + near) * rangeInv;
+        m[5]  = -f; // negate Y: Vulkan NDC has Y+ pointing down
+        m[10] = far * rangeInv;           // Vulkan depth [0, 1]
         m[11] = -1.0f;
-        m[14] = 2.0f * far * near * rangeInv;
+        m[14] = far * near * rangeInv;
         return new Matrix4f(m);
     }
 

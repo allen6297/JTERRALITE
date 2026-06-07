@@ -10,6 +10,9 @@ import com.terralite.core.registry.RegistryManager;
 import com.terralite.core.registry.ResourceId;
 import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
+import com.terralite.game.block.BlockModel;
+import com.terralite.game.block.BlockModelVariant;
+import com.terralite.game.block.BlockStateDefinition;
 import com.terralite.game.block.BlockTextures;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.item.Item;
@@ -21,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -255,6 +259,75 @@ class GameContentValidatorTest {
         assertEquals("block.model.missing", result.issues().get(0).code());
         assertEquals("block.texture.missing", result.issues().get(1).code());
         assertEquals("block.texture.missing", result.issues().get(2).code());
+    }
+
+    @Test
+    void validatesBlockStateVariantAssets() throws Exception {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:wheat"), Block.builder()
+                        .model("terralite:block/cross")
+                        .textures(BlockTextures.all(ResourceId.id("terralite:block/wheat")))
+                        .stateDefinition(new BlockStateDefinition(
+                                Map.of("age", List.of("0", "7")),
+                                Map.of("age", "0")
+                        ))
+                        .modelVariant(new BlockModelVariant(
+                                Map.of("age", "7"),
+                                new BlockModel(ResourceId.id("terralite:block/missing_stage")),
+                                BlockTextures.all(ResourceId.id("terralite:block/missing_wheat"))
+                        ))
+                        .build());
+        ContentAssetIndex assets = ContentAssetIndex.load(List.of(writeAssetPack(
+                "cross.json",
+                List.of("wheat.png")
+        )));
+
+        ContentValidationResult result = new GameContentValidator().validate(registries.freeze(), assets);
+
+        assertEquals(2, result.issues().size());
+        assertEquals("block.model.missing", result.issues().get(0).code());
+        assertEquals("block.texture.missing", result.issues().get(1).code());
+    }
+
+    @Test
+    void reportsStateVariantsThatDoNotMatchDeclaredSchema() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:wheat"), Block.builder()
+                        .stateDefinition(new BlockStateDefinition(
+                                Map.of("age", List.of("0", "7")),
+                                Map.of("age", "0")
+                        ))
+                        .modelVariant(new BlockModelVariant(
+                                Map.of("age", "banana", "facing", "north"),
+                                new BlockModel(ResourceId.id("terralite:block/cross")),
+                                null
+                        ))
+                        .build());
+
+        ContentValidationResult result = new GameContentValidator().validate(registries.freeze());
+
+        assertEquals(2, result.issues().size());
+        assertEquals("block.state.value.invalid", result.issues().get(0).code());
+        assertEquals("block.state.property.unknown", result.issues().get(1).code());
+    }
+
+    @Test
+    void reportsStatePropertiesWithoutDefaults() {
+        RegistryManager registries = baseRegistries();
+        registries.requireMutable(TerraliteRegistries.BLOCKS)
+                .register(ResourceId.id("terralite:wheat"), Block.builder()
+                        .stateDefinition(new BlockStateDefinition(
+                                Map.of("age", List.of("0", "7")),
+                                Map.of()
+                        ))
+                        .build());
+
+        ContentValidationResult result = new GameContentValidator().validate(registries.freeze());
+
+        assertEquals(1, result.issues().size());
+        assertEquals("block.state.default.missing", result.issues().get(0).code());
     }
 
     @Test

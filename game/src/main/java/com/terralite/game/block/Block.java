@@ -27,6 +27,9 @@ public record Block(BlockProperties properties) {
         private String soundType = "stone";
         private BlockTextures textures;
         private BlockModel model = BlockModel.CUBE_ALL;
+        private BlockOccupancy occupancy = BlockOccupancy.SINGLE;
+        private BlockStateDefinition stateDefinition = BlockStateDefinition.EMPTY;
+        private final List<BlockModelVariant> modelVariants = new ArrayList<>();
         private final List<ResourceId> categories = new ArrayList<>();
 
         private Builder() {}
@@ -85,6 +88,27 @@ public record Block(BlockProperties properties) {
             return model(BlockModel.of(model));
         }
 
+        public Builder occupancy(BlockOccupancy occupancy) {
+            this.occupancy = Objects.requireNonNull(occupancy, "occupancy");
+            return this;
+        }
+
+        public Builder stateDefinition(BlockStateDefinition stateDefinition) {
+            this.stateDefinition = Objects.requireNonNull(stateDefinition, "stateDefinition");
+            return this;
+        }
+
+        public Builder modelVariant(BlockModelVariant variant) {
+            modelVariants.add(Objects.requireNonNull(variant, "variant"));
+            return this;
+        }
+
+        public Builder modelVariants(Collection<BlockModelVariant> variants) {
+            this.modelVariants.clear();
+            this.modelVariants.addAll(Objects.requireNonNull(variants, "variants"));
+            return this;
+        }
+
         public Builder category(ResourceId category) {
             categories.add(Objects.requireNonNull(category, "category"));
             return this;
@@ -112,7 +136,10 @@ public record Block(BlockProperties properties) {
                 soundType,
                 List.copyOf(categories),
                 textures,
-                model
+                model,
+                occupancy,
+                stateDefinition,
+                List.copyOf(modelVariants)
             ));
         }
     }

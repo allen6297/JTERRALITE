@@ -13,7 +13,19 @@ class BlockStateTest {
         BlockState stone = BlockState.of("terralite:stone");
 
         assertEquals(ResourceId.id("terralite:stone"), stone.id());
+        assertTrue(stone.properties().isEmpty());
         assertFalse(stone.isAir());
+    }
+
+    @Test
+    void blockStateStoresImmutableProperties() {
+        BlockState wheat = BlockState.of("terralite:wheat")
+                .with("age", "3")
+                .with("facing", "north");
+
+        assertEquals("3", wheat.property("age"));
+        assertEquals("north", wheat.property("facing"));
+        assertEquals(ResourceId.id("terralite:wheat"), wheat.id());
     }
 
     @Test
