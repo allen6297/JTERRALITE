@@ -12,18 +12,19 @@ class RendererTest {
     @Test
     void rendererInitializesStartsRendersAndStopsBackend() {
         RecordingRenderBackend backend = new RecordingRenderBackend();
-        Renderer renderer = new Renderer(backend);
+        try (Renderer renderer = new Renderer(backend)) {
+            assertEquals(RenderState.CREATED, renderer.state());
+            assertEquals(List.of("initialize"), backend.lifecycleEvents());
 
-        assertEquals(RenderState.CREATED, renderer.state());
-        assertEquals(List.of("initialize"), backend.lifecycleEvents());
+            renderer.start();
+            RenderStats stats = renderer.render(RenderFrame.of(1280, 720));
+            renderer.stop();
 
-        renderer.start();
-        RenderStats stats = renderer.render(RenderFrame.of(1280, 720));
-        renderer.stop();
+            assertEquals(RenderState.STOPPED, renderer.state());
+            assertEquals(1, stats.frameIndex());
+            assertEquals(new Viewport(1280, 720), stats.viewport());
+        }
 
-        assertEquals(RenderState.STOPPED, renderer.state());
-        assertEquals(1, stats.frameIndex());
-        assertEquals(new Viewport(1280, 720), stats.viewport());
         assertEquals(List.of("initialize", "start", "stop"), backend.lifecycleEvents());
         assertEquals(1, backend.frames().size());
     }
@@ -31,48 +32,50 @@ class RendererTest {
     @Test
     void renderFrameCanSubmitSceneData() {
         RecordingRenderBackend backend = new RecordingRenderBackend();
-        Renderer renderer = new Renderer(backend);
-        RenderScene scene = RenderScene.builder()
-            .camera(new RenderCamera(1.0, 2.0, 3.0, 75.0, 0.1, 500.0))
-            .addChunk(new RenderChunk(0, 0, 0))
-            .addObject(RenderObject.of("terralite:test_object", 4.0, 5.0, 6.0))
-            .build();
+        try (Renderer renderer = new Renderer(backend)) {
+            RenderScene scene = RenderScene.builder()
+                .camera(new RenderCamera(1.0, 2.0, 3.0, 75.0, 0.1, 500.0))
+                .addChunk(new RenderChunk(0, 0, 0))
+                .addObject(RenderObject.of("terralite:test_object", 4.0, 5.0, 6.0))
+                .build();
 
-        renderer.start();
-        renderer.render(new RenderFrame(new Viewport(800, 600), ClearColor.BLACK, scene));
+            renderer.start();
+            renderer.render(new RenderFrame(new Viewport(800, 600), ClearColor.BLACK, scene));
 
-        RenderFrame submitted = backend.frames().get(0);
-        assertEquals(scene, submitted.scene());
-        assertEquals(new RenderCamera(1.0, 2.0, 3.0, 75.0, 0.1, 500.0), submitted.scene().camera());
-        assertEquals(List.of(new RenderChunk(0, 0, 0)), submitted.scene().chunks());
-        assertEquals(List.of(RenderObject.of("terralite:test_object", 4.0, 5.0, 6.0)), submitted.scene().objects());
+            RenderFrame submitted = backend.frames().get(0);
+            assertEquals(scene, submitted.scene());
+            assertEquals(new RenderCamera(1.0, 2.0, 3.0, 75.0, 0.1, 500.0), submitted.scene().camera());
+            assertEquals(List.of(new RenderChunk(0, 0, 0)), submitted.scene().chunks());
+            assertEquals(List.of(RenderObject.of("terralite:test_object", 4.0, 5.0, 6.0)), submitted.scene().objects());
+        }
     }
 
     @Test
     void rendererRejectsRenderBeforeStart() {
-        Renderer renderer = new Renderer(new RecordingRenderBackend());
-
-        assertThrows(IllegalStateException.class, () -> renderer.render(RenderFrame.of(800, 600)));
+        try (Renderer renderer = new Renderer(new RecordingRenderBackend())) {
+            assertThrows(IllegalStateException.class, () -> renderer.render(RenderFrame.of(800, 600)));
+        }
     }
 
     @Test
     void rendererCannotRestartAfterStop() {
-        Renderer renderer = new Renderer(new RecordingRenderBackend());
+        try (Renderer renderer = new Renderer(new RecordingRenderBackend())) {
+            renderer.start();
+            renderer.stop();
 
-        renderer.start();
-        renderer.stop();
-
-        assertThrows(IllegalStateException.class, renderer::start);
+            assertThrows(IllegalStateException.class, renderer::start);
+        }
     }
 
     @Test
     void rendererStopsInitializedBackendBeforeStart() {
         RecordingRenderBackend backend = new RecordingRenderBackend();
-        Renderer renderer = new Renderer(backend);
+        try (Renderer renderer = new Renderer(backend)) {
+            renderer.stop();
 
-        renderer.stop();
+            assertEquals(RenderState.STOPPED, renderer.state());
+        }
 
-        assertEquals(RenderState.STOPPED, renderer.state());
         assertEquals(List.of("initialize", "stop"), backend.lifecycleEvents());
     }
 

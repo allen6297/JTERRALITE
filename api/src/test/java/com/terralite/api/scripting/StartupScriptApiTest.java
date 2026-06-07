@@ -4,7 +4,6 @@ import com.terralite.content.pack.ContentPack;
 import com.terralite.content.pack.ContentPackLoader;
 import com.terralite.core.registry.ResourceId;
 import com.terralite.core.registry.ResourceKey;
-import com.terralite.game.biome.Biome;
 import com.terralite.game.block.Block;
 import com.terralite.game.category.CreativeCategory;
 import com.terralite.game.content.GameContentLoadReport;

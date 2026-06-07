@@ -61,7 +61,6 @@ public final class ServerScriptHost {
         for (TickHandler tickHandler : tickHandlers) {
             Context context = Context.enter();
             try {
-                context.setOptimizationLevel(-1);
                 context.setClassShutter(className -> className.startsWith("com.terralite."));
                 NativeObject tick = new NativeObject();
                 ScriptableObject.putProperty(tick, "index", index);
@@ -85,7 +84,6 @@ public final class ServerScriptHost {
         String source = Files.readString(script.path());
         Context context = Context.enter();
         try {
-            context.setOptimizationLevel(-1);
             context.setClassShutter(className -> className.startsWith("com.terralite."));
             Scriptable scope = context.initStandardObjects();
             ScriptRuntimeApi api = new ScriptRuntimeApi(

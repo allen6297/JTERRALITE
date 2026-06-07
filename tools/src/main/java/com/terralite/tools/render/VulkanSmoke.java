@@ -42,51 +42,51 @@ public final class VulkanSmoke {
         long durationMillis = durationMillis(args);
         GlfwWindow window = new GlfwWindow(WindowConfig.vulkan("TERRALITE Vulkan Smoke", WIDTH, HEIGHT));
         VulkanRenderBackend backend = new VulkanRenderBackend(window);
-        Renderer renderer = new Renderer(backend);
+        try (Renderer renderer = new Renderer(backend)) {
+            try {
+                renderer.start();
+                long startedAt = System.nanoTime();
+                long deadline = startedAt + durationMillis * 1_000_000L;
 
-        try {
-            renderer.start();
-            long startedAt = System.nanoTime();
-            long deadline = startedAt + durationMillis * 1_000_000L;
-
-            // 3×3 chunk grid at y=0
-            RenderScene.Builder sceneBuilder = RenderScene.builder();
-            for (int x = -1; x <= 1; x++) {
-                for (int z = -1; z <= 1; z++) {
-                    sceneBuilder.addChunk(new RenderChunk(x, 0, z));
+                // 3×3 chunk grid at y=0
+                RenderScene.Builder sceneBuilder = RenderScene.builder();
+                for (int x = -1; x <= 1; x++) {
+                    for (int z = -1; z <= 1; z++) {
+                        sceneBuilder.addChunk(new RenderChunk(x, 0, z));
+                    }
                 }
+                RenderScene baseScene = sceneBuilder.build();
+
+                while (!backend.shouldClose() && System.nanoTime() < deadline) {
+                    double t = (System.nanoTime() - startedAt) / 1_000_000_000.0;
+
+                    // Slowly rotate yaw so rotation is visible
+                    double yaw = t * YAW_DEGREES_PER_SECOND;
+
+                    // Gentle sky color pulse
+                    ClearColor clearColor = new ClearColor(
+                            channel(t, 0.0), channel(t, 2.0), channel(t, 4.0), 1.0f
+                    );
+
+                    RenderCamera camera = new RenderCamera(
+                            EYE_X, EYE_Y, EYE_Z,
+                            70.0, 0.1, 1000.0,
+                            yaw, PITCH_DEGREES
+                    );
+
+                    RenderScene scene = RenderScene.builder()
+                            .camera(camera)
+                            .addChunks(baseScene.chunks())
+                            .build();
+
+                    // Use the actual window size so resize is handled correctly
+                    Viewport viewport = window.viewport();
+                    renderer.render(new RenderFrame(viewport, clearColor, scene));
+                    Thread.sleep(16L);
+                }
+            } finally {
+                renderer.stop();
             }
-            RenderScene baseScene = sceneBuilder.build();
-
-            while (!backend.shouldClose() && System.nanoTime() < deadline) {
-                double t = (System.nanoTime() - startedAt) / 1_000_000_000.0;
-
-                // Slowly rotate yaw so rotation is visible
-                double yaw = t * YAW_DEGREES_PER_SECOND;
-
-                // Gentle sky color pulse
-                ClearColor clearColor = new ClearColor(
-                        channel(t, 0.0), channel(t, 2.0), channel(t, 4.0), 1.0f
-                );
-
-                RenderCamera camera = new RenderCamera(
-                        EYE_X, EYE_Y, EYE_Z,
-                        70.0, 0.1, 1000.0,
-                        yaw, PITCH_DEGREES
-                );
-
-                RenderScene scene = RenderScene.builder()
-                        .camera(camera)
-                        .addChunks(baseScene.chunks())
-                        .build();
-
-                // Use the actual window size so resize is handled correctly
-                Viewport viewport = window.viewport();
-                renderer.render(new RenderFrame(viewport, clearColor, scene));
-                Thread.sleep(16L);
-            }
-        } finally {
-            renderer.stop();
         }
     }
 

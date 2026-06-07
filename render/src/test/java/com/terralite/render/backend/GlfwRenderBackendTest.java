@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GlfwRenderBackendTest {
@@ -27,15 +26,16 @@ class GlfwRenderBackendTest {
     @Test
     void backendDelegatesLifecycleAndReportsWindowViewport() {
         RecordingWindow window = new RecordingWindow(new WindowConfig("TERRALITE", 1024, 768, false));
-        Renderer renderer = new Renderer(new GlfwRenderBackend(window));
+        try (Renderer renderer = new Renderer(new GlfwRenderBackend(window))) {
+            renderer.start();
+            RenderStats stats = renderer.render(RenderFrame.of(800, 600));
+            renderer.stop();
 
-        renderer.start();
-        RenderStats stats = renderer.render(RenderFrame.of(800, 600));
-        renderer.stop();
+            assertEquals(List.of("create", "show", "poll", "viewport", "destroy"), window.events());
+            assertEquals(new Viewport(1024, 768), stats.viewport());
+            assertEquals(1, stats.frameIndex());
+        }
 
-        assertEquals(List.of("create", "show", "poll", "viewport", "destroy"), window.events());
-        assertEquals(new Viewport(1024, 768), stats.viewport());
-        assertEquals(1, stats.frameIndex());
         assertEquals(WindowState.CLOSED, window.state());
     }
 

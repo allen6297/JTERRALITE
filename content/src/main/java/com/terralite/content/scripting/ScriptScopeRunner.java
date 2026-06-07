@@ -53,7 +53,6 @@ final class ScriptScopeRunner {
         String source = Files.readString(script.path());
         Context context = Context.enter();
         try {
-            context.setOptimizationLevel(-1);
             context.setClassShutter(className -> className.startsWith("com.terralite."));
             Scriptable scope = context.initStandardObjects();
             ScriptRuntimeApi api = new ScriptRuntimeApi(script.scope(), script.path(), messages);

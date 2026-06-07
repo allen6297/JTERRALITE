@@ -1,0 +1,16 @@
+CREATE TABLE downloadablePack (
+    name TEXT NOT NULL PRIMARY KEY,
+    author TEXT NOT NULL,
+    size TEXT NOT NULL,
+    description TEXT NOT NULL
+);
+
+insertPack:
+INSERT OR REPLACE INTO downloadablePack(name, author, size, description)
+VALUES (?, ?, ?, ?);
+
+selectAllPacks:
+SELECT * FROM downloadablePack;
+
+clearPacks:
+DELETE FROM downloadablePack;

@@ -1,10 +1,6 @@
 package com.terralite.render.vulkan;
 
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.vulkan.VkMemoryRequirements;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
-
-import java.nio.IntBuffer;
 
 import static org.lwjgl.vulkan.VK10.*;
 
