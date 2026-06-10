@@ -7,7 +7,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,6 +18,8 @@ class ServerScriptHostTest {
     @TempDir
     Path tempDir;
 
+    private static final long TICK_50_MS = 50_000_000L;
+
     @Test
     void serverScriptsCanRegisterTickHandlers() throws Exception {
         ContentPack pack = writePack("base", """
@@ -29,8 +30,8 @@ class ServerScriptHostTest {
         ServerScriptHost host = new ServerScriptHost();
 
         ScriptExecutionReport loadReport = host.load(List.of(pack));
-        host.tick(1, Duration.ofMillis(50), Duration.ofMillis(50));
-        host.tick(2, Duration.ofMillis(50), Duration.ofMillis(100));
+        host.tick(1, TICK_50_MS, TICK_50_MS);
+        host.tick(2, TICK_50_MS, 100_000_000L);
 
         assertEquals(1, loadReport.executedScripts());
         assertEquals(2, host.report().messages().size());
@@ -50,7 +51,7 @@ class ServerScriptHostTest {
         host.load(List.of(pack));
 
         assertThrows(ScriptExecutionException.class,
-                () -> host.tick(1, Duration.ofMillis(50), Duration.ofMillis(50)));
+                () -> host.tick(1, TICK_50_MS, TICK_50_MS));
     }
 
     @Test
@@ -91,7 +92,7 @@ class ServerScriptHostTest {
         ServerScriptHost host = new ServerScriptHost(new ScriptContentScanner(), world);
 
         host.load(List.of(pack));
-        host.tick(1, Duration.ofMillis(50), Duration.ofMillis(50));
+        host.tick(1, TICK_50_MS, TICK_50_MS);
 
         assertEquals("entities=2", host.report().messages().get(0).message());
         assertEquals("chunks=1", host.report().messages().get(1).message());
@@ -135,7 +136,7 @@ class ServerScriptHostTest {
         ServerScriptHost host = new ServerScriptHost(new ScriptContentScanner(), world);
 
         host.load(List.of(pack));
-        host.tick(1, Duration.ofMillis(50), Duration.ofMillis(50));
+        host.tick(1, TICK_50_MS, TICK_50_MS);
 
         assertEquals("load=true", host.report().messages().get(0).message());
         assertEquals("unload=true", host.report().messages().get(1).message());
@@ -148,9 +149,9 @@ class ServerScriptHostTest {
         ServerScriptHost host = new ServerScriptHost(new ScriptContentScanner(), world);
 
         ScriptExecutionReport loadReport = host.load(List.of(pack));
-        host.tick(0, Duration.ofMillis(50), Duration.ZERO);
-        host.tick(20, Duration.ofMillis(50), Duration.ofMillis(1_000));
-        host.tick(100, Duration.ofMillis(50), Duration.ofMillis(5_000));
+        host.tick(0, TICK_50_MS, 0L);
+        host.tick(20, TICK_50_MS, 1_000_000_000L);
+        host.tick(100, TICK_50_MS, 5_000_000_000L);
 
         assertEquals(1, loadReport.executedScripts());
         assertEquals(List.of(

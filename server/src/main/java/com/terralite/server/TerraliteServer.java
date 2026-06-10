@@ -14,7 +14,6 @@ import com.terralite.engine.world.World;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -81,9 +80,9 @@ public final class TerraliteServer {
         state = ServerState.RUNNING;
     }
 
-    public int advance(Duration elapsed) {
+    public int advance(long elapsedNanos) {
         ensureRunning();
-        return engine.advance(elapsed);
+        return engine.advance(elapsedNanos);
     }
 
     public void stop() {
@@ -149,7 +148,7 @@ public final class TerraliteServer {
         }
 
         private void applyConfig(ServerConfig config) {
-            engineBuilder.tickDelta(config.tickDelta());
+            engineBuilder.tickDeltaNanos(config.tickDeltaNanos());
             engineBuilder.maxTicksPerAdvance(config.maxTicksPerAdvance());
         }
 

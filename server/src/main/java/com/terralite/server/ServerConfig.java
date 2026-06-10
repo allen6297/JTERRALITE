@@ -1,25 +1,22 @@
 package com.terralite.server;
 
-import java.time.Duration;
 import java.util.Objects;
 
-public record ServerConfig(Duration tickDelta, int maxTicksPerAdvance) {
-    public static final Duration DEFAULT_TICK_DELTA = Duration.ofMillis(50);
+/** Server tick configuration. Durations are in nanoseconds. */
+public record ServerConfig(long tickDeltaNanos, int maxTicksPerAdvance) {
+    public static final long DEFAULT_TICK_DELTA_NANOS = 50_000_000L;  // 50 ms
     public static final int DEFAULT_MAX_TICKS_PER_ADVANCE = 5;
 
     public ServerConfig {
-        Objects.requireNonNull(tickDelta, "tickDelta");
-
-        if (tickDelta.isZero() || tickDelta.isNegative()) {
+        if (tickDeltaNanos <= 0) {
             throw new IllegalArgumentException("Tick delta must be positive");
         }
-
         if (maxTicksPerAdvance <= 0) {
             throw new IllegalArgumentException("Max ticks per advance must be positive");
         }
     }
 
     public static ServerConfig defaults() {
-        return new ServerConfig(DEFAULT_TICK_DELTA, DEFAULT_MAX_TICKS_PER_ADVANCE);
+        return new ServerConfig(DEFAULT_TICK_DELTA_NANOS, DEFAULT_MAX_TICKS_PER_ADVANCE);
     }
 }

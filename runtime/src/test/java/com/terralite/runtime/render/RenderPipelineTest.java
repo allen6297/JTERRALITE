@@ -83,7 +83,7 @@ class RenderPipelineTest {
     }
 
     @Test
-    void pipelineRemapsTextureUvsThroughAtlasBeforeRendering() {
+    void pipelineRemapsTextureUvsThroughAtlasBeforeRendering() throws Exception {
         ResourceId blockId = ResourceId.id("terralite:textured_block");
         ResourceId modelId = ResourceId.id("terralite:block/textured_triangle");
         ResourceId textureId = ResourceId.id("terralite:block/texture");
@@ -118,12 +118,19 @@ class RenderPipelineTest {
         );
 
         renderer.start();
-        pipeline.renderFrame();
+        for (int i = 0; i < 20; i++) {
+            pipeline.renderFrame();
+            if (!backend.frames().get(backend.frames().size() - 1).scene().chunkMeshes().isEmpty()) {
+                break;
+            }
+            Thread.sleep(10);
+        }
 
-        var vertices = backend.frames().get(0).scene().chunkMeshes().get(0).mesh().vertices();
-        assertEquals(0.5f, vertices.get(0).u());
-        assertEquals(1.0f, vertices.get(1).u());
-        assertEquals(1.0f, vertices.get(2).v());
-        assertEquals(atlas, backend.frames().get(0).textureAtlas());
+        var frame = backend.frames().get(backend.frames().size() - 1);
+        var vertices = frame.scene().chunkMeshes().get(0).mesh().vertices();
+        assertEquals(0.625f, vertices.get(0).u());
+        assertEquals(0.875f, vertices.get(1).u());
+        assertEquals(0.75f, vertices.get(2).v());
+        assertEquals(atlas, frame.textureAtlas());
     }
 }

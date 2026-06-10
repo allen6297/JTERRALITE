@@ -22,6 +22,8 @@ import org.lwjgl.vulkan.*;
 
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,6 +39,8 @@ import static org.lwjgl.vulkan.VK10.*;
  * camera MVP push constant.
  */
 public final class VulkanRenderBackend implements RenderBackend {
+    private static final int MAX_MESH_BUFFER_UPLOADS_PER_FRAME = 1;
+
     private final RenderWindow window;
 
     private VulkanContext ctx;
@@ -46,6 +50,7 @@ public final class VulkanRenderBackend implements RenderBackend {
     private TextureAtlas currentAtlas;
     private VulkanTextureAtlas textureAtlas;
     private final Map<RenderChunk, ChunkBuffer> chunkBuffers = new HashMap<>();
+    private final Deque<RetiredChunkBuffer> retiredChunkBuffers = new ArrayDeque<>();
 
     private int currentFrame = 0;
     private long frameIndex = 0;
@@ -58,8 +63,7 @@ public final class VulkanRenderBackend implements RenderBackend {
     @Override
     public void initialize() {
         window.create();
-        long handle = windowHandle();
-        ctx = VulkanContext.create(handle);
+        ctx = VulkanContext.create(window.vulkanSurfaceFactory());
         Viewport vp = window.viewport();
         swapchain = VulkanSwapchain.create(ctx, vp.width(), vp.height());
         pipeline = VulkanPipeline.create(ctx, swapchain);
@@ -106,6 +110,7 @@ public final class VulkanRenderBackend implements RenderBackend {
 
             // Wait for this frame slot to be free
             vkWaitForFences(ctx.device, inFlightFence, true, Long.MAX_VALUE);
+            flushRetiredChunkBuffers();
 
             // Acquire next swapchain image
             IntBuffer imageIndexBuf = stack.mallocInt(1);
@@ -222,12 +227,14 @@ public final class VulkanRenderBackend implements RenderBackend {
         mvpBuf.flip();
         vkCmdPushConstants(cmd, pipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, mvpBuf);
 
-        // Draw real chunk meshes when present; fall back to flat markers for empty/debug scenes.
-        if (frame.scene().chunkMeshes().isEmpty()) {
+        // Terrain chunk meshes first (throttled), then dynamic meshes (always re-uploaded).
+        // syncChunkMeshBuffers receives dynamic keys so it does not evict their buffers.
+        if (frame.scene().chunkMeshes().isEmpty() && frame.scene().dynamicMeshes().isEmpty()) {
             syncChunkBuffers(frame.scene().chunks());
         } else {
-            syncChunkMeshBuffers(frame.scene().chunkMeshes());
+            syncChunkMeshBuffers(frame.scene().chunkMeshes(), frame.scene().dynamicMeshes());
         }
+        syncDynamicMeshBuffers(frame.scene().dynamicMeshes());
         for (ChunkBuffer chunkBuffer : chunkBuffers.values()) {
             VulkanMeshBuffer buf = chunkBuffer.buffer();
             vkCmdBindVertexBuffers(cmd, 0, stack.longs(buf.buffer), stack.longs(0L));
@@ -244,7 +251,7 @@ public final class VulkanRenderBackend implements RenderBackend {
         // Destroy removed chunks
         chunkBuffers.entrySet().removeIf(entry -> {
             if (!submitted.contains(entry.getKey())) {
-                entry.getValue().destroy(ctx);
+                retire(entry.getValue());
                 return true;
             }
             return false;
@@ -257,28 +264,54 @@ public final class VulkanRenderBackend implements RenderBackend {
         }
     }
 
-    private void syncChunkMeshBuffers(List<RenderChunkMesh> chunkMeshes) {
+    /**
+     * Uploads dynamic meshes (player models, overlays) without any per-frame cap.
+     * These meshes change every frame and must always reflect the latest data.
+     */
+    private void syncDynamicMeshBuffers(List<RenderChunkMesh> dynamicMeshes) {
+        for (RenderChunkMesh mesh : dynamicMeshes) {
+            MeshSignature signature = MeshSignature.from(mesh);
+            ChunkBuffer existing = chunkBuffers.get(mesh.chunk());
+            if (existing == null || !existing.signature().equals(signature)) {
+                if (existing != null) {
+                    retire(existing);
+                }
+                chunkBuffers.put(mesh.chunk(), new ChunkBuffer(signature, VulkanMeshBuffer.create(ctx, mesh.mesh())));
+            }
+        }
+    }
+
+    private void syncChunkMeshBuffers(List<RenderChunkMesh> chunkMeshes, List<RenderChunkMesh> dynamicMeshes) {
         Set<RenderChunk> submitted = new HashSet<>();
         for (RenderChunkMesh chunkMesh : chunkMeshes) {
             submitted.add(chunkMesh.chunk());
         }
+        // Dynamic mesh buffers are managed by syncDynamicMeshBuffers — don't evict them here.
+        for (RenderChunkMesh dynamic : dynamicMeshes) {
+            submitted.add(dynamic.chunk());
+        }
 
         chunkBuffers.entrySet().removeIf(entry -> {
             if (!submitted.contains(entry.getKey())) {
-                entry.getValue().destroy(ctx);
+                retire(entry.getValue());
                 return true;
             }
             return false;
         });
 
+        int uploads = 0;
         for (RenderChunkMesh chunkMesh : chunkMeshes) {
             MeshSignature signature = MeshSignature.from(chunkMesh);
             ChunkBuffer existing = chunkBuffers.get(chunkMesh.chunk());
             if (existing == null || !existing.signature().equals(signature)) {
+                if (uploads >= MAX_MESH_BUFFER_UPLOADS_PER_FRAME) {
+                    continue;
+                }
                 if (existing != null) {
-                    existing.destroy(ctx);
+                    retire(existing);
                 }
                 chunkBuffers.put(chunkMesh.chunk(), new ChunkBuffer(signature, VulkanMeshBuffer.create(ctx, chunkMesh.mesh())));
+                uploads++;
             }
         }
     }
@@ -288,6 +321,23 @@ public final class VulkanRenderBackend implements RenderBackend {
             chunkBuffer.destroy(ctx);
         }
         chunkBuffers.clear();
+        while (!retiredChunkBuffers.isEmpty()) {
+            retiredChunkBuffers.removeFirst().chunkBuffer().destroy(ctx);
+        }
+    }
+
+    private void retire(ChunkBuffer chunkBuffer) {
+        retiredChunkBuffers.addLast(new RetiredChunkBuffer(
+                chunkBuffer,
+                frameIndex + VulkanCommands.FRAMES_IN_FLIGHT
+        ));
+    }
+
+    private void flushRetiredChunkBuffers() {
+        while (!retiredChunkBuffers.isEmpty()
+                && retiredChunkBuffers.peekFirst().retireAfterFrame() < frameIndex) {
+            retiredChunkBuffers.removeFirst().chunkBuffer().destroy(ctx);
+        }
     }
 
     private void recreateSwapchain() {
@@ -318,14 +368,6 @@ public final class VulkanRenderBackend implements RenderBackend {
         return new TextureAtlas(1, 1, new int[] {0xffffffff}, Map.of());
     }
 
-    private long windowHandle() {
-        // GlfwWindow exposes the native handle via handle() — accessed reflectively-safe via cast
-        if (window instanceof com.terralite.render.glfw.GlfwWindow glfwWindow) {
-            return glfwWindow.handle();
-        }
-        throw new IllegalStateException("VulkanRenderBackend requires a GlfwWindow");
-    }
-
     record MeshSignature(int vertexCount, int vertexHash) {
         static MeshSignature untracked() {
             return new MeshSignature(-1, 0);
@@ -347,6 +389,12 @@ public final class VulkanRenderBackend implements RenderBackend {
 
         private void destroy(VulkanContext ctx) {
             buffer.destroy(ctx);
+        }
+    }
+
+    private record RetiredChunkBuffer(ChunkBuffer chunkBuffer, long retireAfterFrame) {
+        private RetiredChunkBuffer {
+            Objects.requireNonNull(chunkBuffer, "chunkBuffer");
         }
     }
 }

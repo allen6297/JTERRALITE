@@ -104,10 +104,31 @@ public final class ChunkMeshBuilder {
         int sy = chunk.y() * CHUNK_SIZE;
         int sz = chunk.z() * CHUNK_SIZE;
 
+        return build(snapshot(world, chunk, sx, sy, sz));
+    }
+
+    public ChunkMeshSnapshot snapshot(World world, RenderChunk chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        return snapshot(world, chunk, chunk.x() * CHUNK_SIZE, chunk.y() * CHUNK_SIZE, chunk.z() * CHUNK_SIZE);
+    }
+
+    private static ChunkMeshSnapshot snapshot(World world, RenderChunk chunk, int sx, int sy, int sz) {
+        Objects.requireNonNull(world, "world");
+        return new ChunkMeshSnapshot(chunk, sx, sy, sz, buildBlockCache(world, sx, sy, sz));
+    }
+
+    public Optional<RenderChunkMesh> build(ChunkMeshSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+
+        RenderChunk chunk = snapshot.chunk();
+        int sx = snapshot.startX();
+        int sy = snapshot.startY();
+        int sz = snapshot.startZ();
+
         List<DebugVertex> vertices = new ArrayList<>();
 
         // Build the block cache once — used by both model-mesh and greedy paths
-        BlockState[] blockCache = buildBlockCache(world, sx, sy, sz);
+        BlockState[] blockCache = snapshot.blockCache();
 
         // --- Model-mesh blocks (custom geometry, not greedy-mergeable) ---
         if (!modelMeshes.isEmpty()) {
@@ -131,6 +152,13 @@ public final class ChunkMeshBuilder {
 
         if (vertices.isEmpty()) return Optional.empty();
         return Optional.of(new RenderChunkMesh(chunk, new DebugMesh(vertices)));
+    }
+
+    public record ChunkMeshSnapshot(RenderChunk chunk, int startX, int startY, int startZ, BlockState[] blockCache) {
+        public ChunkMeshSnapshot {
+            Objects.requireNonNull(chunk, "chunk");
+            blockCache = Objects.requireNonNull(blockCache, "blockCache").clone();
+        }
     }
 
     // -------------------------------------------------------------------------

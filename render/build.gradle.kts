@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.lwjgl.stb)
     implementation(libs.lwjgl.vma)
     implementation(libs.lwjgl.vulkan)
+    implementation("org.lwjgl:lwjgl-jawt:$lwjglVersion")
 
     implementation(libs.imgui.java.binding)
     implementation(libs.imgui.java.lwjgl3)

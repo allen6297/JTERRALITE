@@ -10,7 +10,6 @@ import org.mozilla.javascript.ScriptableObject;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -54,18 +53,15 @@ public final class ServerScriptHost {
         return report();
     }
 
-    public void tick(long index, Duration delta, Duration totalTime) {
-        Objects.requireNonNull(delta, "delta");
-        Objects.requireNonNull(totalTime, "totalTime");
-
+    public void tick(long index, long deltaNanos, long totalNanos) {
         for (TickHandler tickHandler : tickHandlers) {
             Context context = Context.enter();
             try {
                 context.setClassShutter(className -> className.startsWith("com.terralite."));
                 NativeObject tick = new NativeObject();
                 ScriptableObject.putProperty(tick, "index", index);
-                ScriptableObject.putProperty(tick, "deltaMillis", delta.toMillis());
-                ScriptableObject.putProperty(tick, "totalMillis", totalTime.toMillis());
+                ScriptableObject.putProperty(tick, "deltaMillis", deltaNanos / 1_000_000L);
+                ScriptableObject.putProperty(tick, "totalMillis", totalNanos / 1_000_000L);
                 tickHandler.function().call(context, tickHandler.scope(), tickHandler.scope(), new Object[]{tick});
             } catch (RhinoException exception) {
                 throw new ScriptExecutionException("Failed to execute server tick handler: "

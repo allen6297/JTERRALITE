@@ -1,11 +1,16 @@
 package com.terralite.render.glfw;
 
 import com.terralite.render.Viewport;
+import com.terralite.render.vulkan.VulkanSurfaceFactory;
 import com.terralite.render.window.RenderWindow;
 import com.terralite.render.window.WindowConfig;
 import com.terralite.render.window.WindowState;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWVulkan;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.vulkan.VkInstance;
+
+import java.nio.LongBuffer;
 
 import java.nio.IntBuffer;
 import java.util.Objects;
@@ -122,6 +127,29 @@ public final class GlfwWindow implements RenderWindow {
         handle = 0L;
         state = WindowState.CLOSED;
         GLFW.glfwTerminate();
+    }
+
+    @Override
+    public VulkanSurfaceFactory vulkanSurfaceFactory() {
+        final long h = handle;
+        return new VulkanSurfaceFactory() {
+            @Override
+            public org.lwjgl.PointerBuffer requiredExtensions(MemoryStack stack) {
+                org.lwjgl.PointerBuffer ext = GLFWVulkan.glfwGetRequiredInstanceExtensions();
+                if (ext == null) throw new IllegalStateException("Vulkan not supported on this platform (GLFW)");
+                return ext;
+            }
+
+            @Override
+            public long createSurface(VkInstance instance, MemoryStack stack) {
+                LongBuffer surfacePtr = stack.mallocLong(1);
+                com.terralite.render.vulkan.VulkanUtils.check(
+                        GLFWVulkan.glfwCreateWindowSurface(instance, h, null, surfacePtr),
+                        "Failed to create GLFW window surface"
+                );
+                return surfacePtr.get(0);
+            }
+        };
     }
 
     private void ensureOpen() {

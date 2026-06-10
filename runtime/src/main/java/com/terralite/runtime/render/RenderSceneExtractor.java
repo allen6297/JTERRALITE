@@ -80,13 +80,14 @@ public final class RenderSceneExtractor {
     }
 
     static void addEntityObject(RenderScene.Builder scene, Entity entity) {
-        entity.get(PhysicsComponents.TRANSFORM)
-                .map(transform -> RenderObject.of(
-                        "terralite:entity/" + entity.id().value(),
-                        transform.x(),
-                        transform.y(),
-                        transform.z()
-                ))
-                .ifPresent(scene::addObject);
+        Transform transform = entity.get(PhysicsComponents.TRANSFORM);
+        if (transform != null) {
+            scene.addObject(RenderObject.of(
+                    "terralite:entity/" + entity.id().value(),
+                    transform.x(),
+                    transform.y(),
+                    transform.z()
+            ));
+        }
     }
 }

@@ -17,13 +17,25 @@ public record RenderScene(
         RenderCamera camera,
         List<RenderChunk> chunks,
         List<RenderChunkMesh> chunkMeshes,
-        List<RenderObject> objects
+        List<RenderObject> objects,
+        List<RenderChunkMesh> dynamicMeshes
 ) {
     public RenderScene {
         Objects.requireNonNull(camera, "camera");
         Objects.requireNonNull(chunks, "chunks");
         Objects.requireNonNull(chunkMeshes, "chunkMeshes");
         Objects.requireNonNull(objects, "objects");
+        Objects.requireNonNull(dynamicMeshes, "dynamicMeshes");
+    }
+
+    /** Returns all meshes — chunk meshes followed by dynamic meshes — for backends that don't distinguish. */
+    public List<RenderChunkMesh> allMeshes() {
+        if (dynamicMeshes.isEmpty()) return chunkMeshes;
+        if (chunkMeshes.isEmpty()) return dynamicMeshes;
+        var all = new ArrayList<RenderChunkMesh>(chunkMeshes.size() + dynamicMeshes.size());
+        all.addAll(chunkMeshes);
+        all.addAll(dynamicMeshes);
+        return all;
     }
 
     public static RenderScene empty() {
@@ -60,6 +72,7 @@ public record RenderScene(
         private final List<RenderChunk> chunks = new ArrayList<>();
         private final List<RenderChunkMesh> chunkMeshes = new ArrayList<>();
         private final List<RenderObject> objects = new ArrayList<>();
+        private final List<RenderChunkMesh> dynamicMeshes = new ArrayList<>();
 
         private Builder() {
         }
@@ -89,6 +102,20 @@ public record RenderScene(
             return this;
         }
 
+        /**
+         * Adds a dynamic mesh (player model, overlay, etc.) that must be re-uploaded every
+         * frame and is not subject to the per-frame terrain upload throttle.
+         */
+        public Builder addDynamicMesh(RenderChunkMesh mesh) {
+            dynamicMeshes.add(Objects.requireNonNull(mesh, "mesh"));
+            return this;
+        }
+
+        public Builder addDynamicMeshes(List<RenderChunkMesh> meshes) {
+            meshes.forEach(this::addDynamicMesh);
+            return this;
+        }
+
         public Builder addObject(RenderObject object) {
             objects.add(Objects.requireNonNull(object, "object"));
             return this;
@@ -100,7 +127,7 @@ public record RenderScene(
         }
 
         public RenderScene build() {
-            return new RenderScene(camera, chunks, chunkMeshes, objects);
+            return new RenderScene(camera, chunks, chunkMeshes, objects, dynamicMeshes);
         }
     }
 }

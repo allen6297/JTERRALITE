@@ -64,13 +64,45 @@ public final class VulkanContext {
         return transferCommandPool;
     }
 
+    /**
+     * Creates a {@link VulkanContext} using a GLFW window handle (legacy path).
+     *
+     * <p>Equivalent to {@code create(factory)} where {@code factory} delegates
+     * to {@code GLFWVulkan} for extensions and surface creation.
+     */
     public static VulkanContext create(long windowHandle) {
+        return create(new VulkanSurfaceFactory() {
+            @Override
+            public PointerBuffer requiredExtensions(MemoryStack stack) {
+                PointerBuffer ext = GLFWVulkan.glfwGetRequiredInstanceExtensions();
+                if (ext == null) throw new IllegalStateException("Vulkan not supported on this platform (GLFW)");
+                return ext;
+            }
+
+            @Override
+            public long createSurface(VkInstance instance, MemoryStack stack) {
+                LongBuffer surfacePtr = stack.mallocLong(1);
+                VulkanUtils.check(
+                        GLFWVulkan.glfwCreateWindowSurface(instance, windowHandle, null, surfacePtr),
+                        "Failed to create GLFW window surface"
+                );
+                return surfacePtr.get(0);
+            }
+        });
+    }
+
+    /**
+     * Creates a {@link VulkanContext} using a platform-agnostic {@link VulkanSurfaceFactory}.
+     *
+     * <p>Use this overload for non-GLFW surfaces such as AWT/JAWT.
+     */
+    public static VulkanContext create(VulkanSurfaceFactory factory) {
         boolean validationActive = VALIDATION && isLayerAvailable(VALIDATION_LAYER);
         if (VALIDATION && !validationActive) {
             System.out.println("[Vulkan] Validation layer not available — running without validation");
         }
 
-        VkInstance instance = createInstance(validationActive);
+        VkInstance instance = createInstance(validationActive, factory);
 
         VkDebugUtilsMessengerCallbackEXT callbackHandle = null;
         long debugMessenger = VK_NULL_HANDLE;
@@ -85,7 +117,10 @@ public final class VulkanContext {
             debugMessenger = createDebugMessenger(instance, callbackHandle);
         }
 
-        long surface = createSurface(instance, windowHandle);
+        long surface;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            surface = factory.createSurface(instance, stack);
+        }
         VkPhysicalDevice physicalDevice = pickPhysicalDevice(instance, surface);
         int graphicsFamily = findQueueFamily(physicalDevice, VK_QUEUE_GRAPHICS_BIT, -1, surface, false);
         int presentFamily = findQueueFamily(physicalDevice, 0, graphicsFamily, surface, true);
@@ -138,9 +173,9 @@ public final class VulkanContext {
         }
     }
 
-    private static VkInstance createInstance(boolean validationActive) {
+    private static VkInstance createInstance(boolean validationActive, VulkanSurfaceFactory factory) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            PointerBuffer requiredExtensions = GLFWVulkan.glfwGetRequiredInstanceExtensions();
+            PointerBuffer requiredExtensions = factory.requiredExtensions(stack);
             if (requiredExtensions == null) {
                 throw new IllegalStateException("Vulkan is not supported on this platform");
             }
@@ -201,17 +236,6 @@ public final class VulkanContext {
                     "Failed to create debug messenger"
             );
             return messengerPtr.get(0);
-        }
-    }
-
-    private static long createSurface(VkInstance instance, long windowHandle) {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            LongBuffer surfacePtr = stack.mallocLong(1);
-            VulkanUtils.check(
-                    GLFWVulkan.glfwCreateWindowSurface(instance, windowHandle, null, surfacePtr),
-                    "Failed to create window surface"
-            );
-            return surfacePtr.get(0);
         }
     }
 

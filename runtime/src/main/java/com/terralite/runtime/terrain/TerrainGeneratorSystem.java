@@ -27,7 +27,7 @@ import java.util.function.Consumer;
  */
 public final class TerrainGeneratorSystem implements WorldSimulationSystem {
     /** Max chunks applied to the world per simulation tick to keep the main thread responsive. */
-    private static final int APPLY_PER_TICK = 2;
+    private static final int APPLY_PER_TICK = 1;
 
     private final TerrainGenerator generator;
     private final ExecutorService executor;

@@ -30,7 +30,7 @@ class RenderSceneExtractorTest {
 
         RenderScene scene = RenderSceneExtractor.from(world, camera);
 
-        assertEquals(new RenderCamera(1.0, 2.0, 3.0, 80.0, 0.1, 500.0), scene.camera());
+        assertEquals(new RenderCamera(1.0f, 2.0f, 3.0f, 80.0f, 0.1f, 500.0f), scene.camera());
         assertEquals(List.of(new RenderChunk(0, 0, 0), new RenderChunk(1, 0, 0)), scene.chunks());
         assertEquals(
                 List.of(RenderObject.of("terralite:entity/" + visible.id().value(), 4.0, 5.0, 6.0)),

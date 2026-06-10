@@ -58,7 +58,7 @@ fun LauncherScreen(
     packsPath: String,
     packs: List<PackDisplayInfo>,
     contentRepository: ContentRepository,
-    onLaunchClient: () -> Unit,
+    onLaunchClient: (serverAddress: String?) -> Unit,
     onLaunchServer: () -> Unit,
     onLaunchEditor: () -> Unit = {}
 ) {
@@ -66,6 +66,7 @@ fun LauncherScreen(
     var showSocial by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(LauncherTab.PLAY) }
     var userProfile by remember { mutableStateOf(UserProfile("Explorer_" + (1000..9999).random())) }
+    var serverAddress by remember { mutableStateOf("") }
     
     val downloadablePacks by contentRepository.getDownloadablePacks().collectAsState(emptyList())
 
@@ -184,7 +185,7 @@ fun LauncherScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        if (showSocial) "×" else "P",
+                                        if (showSocial) "X" else "P",
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp
@@ -228,14 +229,40 @@ fun LauncherScreen(
                                     LauncherTab.PLAY -> {
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(32.dp)
+                                            verticalArrangement = Arrangement.spacedBy(24.dp)
                                         ) {
+                                            // Server address field for joining multiplayer
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Text(
+                                                    "Server Address (leave blank for single-player)",
+                                                    color = TextMuted,
+                                                    fontSize = 11.sp
+                                                )
+                                                OutlinedTextField(
+                                                    value = serverAddress,
+                                                    onValueChange = { serverAddress = it },
+                                                    placeholder = { Text("localhost:25565", color = TextMuted, fontSize = 13.sp) },
+                                                    singleLine = true,
+                                                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                                                        textColor = TextPrimary,
+                                                        focusedBorderColor = Accent,
+                                                        unfocusedBorderColor = TextMuted.copy(alpha = 0.4f),
+                                                        backgroundColor = Surface,
+                                                        cursorColor = Accent
+                                                    ),
+                                                    modifier = Modifier.width(300.dp)
+                                                )
+                                            }
+
                                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                                 LaunchButton(
-                                                    label = "Play",
-                                                    description = "Start the game client",
+                                                    label = if (serverAddress.isBlank()) "Play" else "Join",
+                                                    description = if (serverAddress.isBlank()) "Start single-player" else "Join $serverAddress",
                                                     color = ButtonClient,
-                                                    onClick = onLaunchClient
+                                                    onClick = { onLaunchClient(serverAddress.takeIf { it.isNotBlank() }) }
                                                 )
                                                 LaunchButton(
                                                     label = "Host Server",
@@ -244,7 +271,7 @@ fun LauncherScreen(
                                                     onClick = onLaunchServer
                                                 )
                                             }
-                                            
+
                                             PackInfo(packsPath = packsPath, packs = packs)
                                         }
                                     }
@@ -494,7 +521,7 @@ private fun ContentBrowser(downloadablePacks: List<DownloadablePack>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Search content...", color = TextMuted, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Text("Latest v", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Latest", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
 
         // Content List
@@ -563,7 +590,7 @@ private fun LauncherScreenPreview() {
                     PackDisplayInfo("Industrial Tech", "0.5.2", "Adds machines and automation")
                 ),
                 contentRepository = mockRepository,
-                onLaunchClient = {},
+                onLaunchClient = { _ -> },
                 onLaunchServer = {}
             )
         }

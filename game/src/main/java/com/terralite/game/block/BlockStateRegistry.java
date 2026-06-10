@@ -121,7 +121,7 @@ public final class BlockStateRegistry {
             LinkedHashMap<String, String> properties
     ) {
         if (propertyIndex == propertyNames.size()) {
-            states.add(new BlockState(blockId, properties));
+            states.add(new BlockState(blockId, Map.copyOf(properties)));
             return;
         }
 

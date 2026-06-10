@@ -7,6 +7,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 public record TextureAtlas(int width, int height, int[] argbPixels, Map<ResourceId, TextureRegion> regions) {
+    public static final ResourceId FONT_ASCII = ResourceId.id("terralite:ui/font_ascii");
+
     public TextureAtlas {
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("Texture atlas dimensions must be positive");

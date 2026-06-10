@@ -8,6 +8,6 @@ fun main(args: Array<String>) {
 
     when (mode) {
         "server" -> ServerApp(packsRoot).run()
-        else -> ClientApp(packsRoot).run()
+        else -> TerraliteGame.main(arrayOf(packsRoot.toString()))
     }
 }

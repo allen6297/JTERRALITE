@@ -34,7 +34,7 @@ class RendererTest {
         RecordingRenderBackend backend = new RecordingRenderBackend();
         try (Renderer renderer = new Renderer(backend)) {
             RenderScene scene = RenderScene.builder()
-                .camera(new RenderCamera(1.0, 2.0, 3.0, 75.0, 0.1, 500.0))
+                .camera(new RenderCamera(1.0f, 2.0f, 3.0f, 75.0f, 0.1f, 500.0f))
                 .addChunk(new RenderChunk(0, 0, 0))
                 .addObject(RenderObject.of("terralite:test_object", 4.0, 5.0, 6.0))
                 .build();
@@ -44,7 +44,7 @@ class RendererTest {
 
             RenderFrame submitted = backend.frames().get(0);
             assertEquals(scene, submitted.scene());
-            assertEquals(new RenderCamera(1.0, 2.0, 3.0, 75.0, 0.1, 500.0), submitted.scene().camera());
+            assertEquals(new RenderCamera(1.0f, 2.0f, 3.0f, 75.0f, 0.1f, 500.0f), submitted.scene().camera());
             assertEquals(List.of(new RenderChunk(0, 0, 0)), submitted.scene().chunks());
             assertEquals(List.of(RenderObject.of("terralite:test_object", 4.0, 5.0, 6.0)), submitted.scene().objects());
         }
@@ -100,6 +100,6 @@ class RendererTest {
     void frameValuesRejectInvalidInput() {
         assertThrows(IllegalArgumentException.class, () -> new Viewport(0, 720));
         assertThrows(IllegalArgumentException.class, () -> new ClearColor(-0.1f, 0.0f, 0.0f, 1.0f));
-        assertThrows(IllegalArgumentException.class, () -> new RenderCamera(0.0, 0.0, 0.0, 180.0, 0.1, 1_000.0));
+        assertThrows(IllegalArgumentException.class, () -> new RenderCamera(0.0f, 0.0f, 0.0f, 180.0f, 0.1f, 1_000.0f));
     }
 }

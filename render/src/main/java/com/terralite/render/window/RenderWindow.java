@@ -1,6 +1,7 @@
 package com.terralite.render.window;
 
 import com.terralite.render.Viewport;
+import com.terralite.render.vulkan.VulkanSurfaceFactory;
 
 public interface RenderWindow {
     WindowConfig config();
@@ -26,4 +27,13 @@ public interface RenderWindow {
     Viewport viewport();
 
     void destroy();
+
+    /**
+     * Returns a {@link VulkanSurfaceFactory} that can create a Vulkan surface for this window.
+     * Implementations should override this to provide platform-specific surface creation.
+     */
+    default VulkanSurfaceFactory vulkanSurfaceFactory() {
+        throw new UnsupportedOperationException(
+                getClass().getSimpleName() + " does not implement vulkanSurfaceFactory()");
+    }
 }

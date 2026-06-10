@@ -36,10 +36,25 @@ public final class TextureAtlasMapper {
                         vertex.red(),
                         vertex.green(),
                         vertex.blue(),
-                        region.mapU(vertex.u()),
-                        region.mapV(vertex.v()),
+                        vertex.alpha(),
+                        mapU(region, atlas, vertex.u()),
+                        mapV(region, atlas, vertex.v()),
                         vertex.texture()
                 ))
                 .orElse(vertex);
+    }
+
+    private static float mapU(TextureRegion region, TextureAtlas atlas, float u) {
+        float inset = Math.min(0.5f / atlas.width(), (region.u1() - region.u0()) * 0.5f);
+        float u0 = region.u0() + inset;
+        float u1 = region.u1() - inset;
+        return u0 + (u1 - u0) * u;
+    }
+
+    private static float mapV(TextureRegion region, TextureAtlas atlas, float v) {
+        float inset = Math.min(0.5f / atlas.height(), (region.v1() - region.v0()) * 0.5f);
+        float v0 = region.v0() + inset;
+        float v1 = region.v1() - inset;
+        return v0 + (v1 - v0) * v;
     }
 }

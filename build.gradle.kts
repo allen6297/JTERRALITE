@@ -22,7 +22,7 @@ subprojects {
 
     // java-library, toolchain, and JUnit deps apply to every module EXCEPT the KMP launcher,
     // which configures these itself via its kotlin {} source sets.
-    if (name != "launcher") {
+    if (name != "launcher" && name != "core" && name != "engine") {
         apply(plugin = "java-library")
 
         extensions.configure<JavaPluginExtension> {

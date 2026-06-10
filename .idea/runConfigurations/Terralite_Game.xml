@@ -1,11 +1,27 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Terralite Game" type="Application" factoryName="Application">
-    <option name="MAIN_CLASS_NAME" value="com.terralite.launcher.TerraliteGame" />
-    <module name="JTERRALITE.launcher.main" />
-    <option name="PROGRAM_PARAMETERS" value="$PROJECT_DIR$/packs" />
-    <option name="VM_PARAMETERS" value="-ea" />
-    <method v="2">
-      <option name="Make" enabled="true" />
-    </method>
+  <configuration default="false" name="Terralite Game" type="GradleRunConfiguration" factoryName="Gradle">
+    <ExternalSystemSettings>
+      <option name="executionName" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$/launcher" />
+      <option name="externalSystemIdString" value="GRADLE" />
+      <option name="scriptParameters" value="-DmainClass=com.terralite.launcher.TerraliteGame --args=&quot;$PROJECT_DIR$/packs&quot; --quiet" />
+      <option name="taskDescriptions">
+        <list />
+      </option>
+      <option name="taskNames">
+        <list>
+          <option value="jvmRun" />
+        </list>
+      </option>
+      <option name="vmOptions" value="-ea" />
+    </ExternalSystemSettings>
+    <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+    <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+    <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+    <DebugAllEnabled>false</DebugAllEnabled>
+    <RunAsTest>false</RunAsTest>
+    <GradleProfilingDisabled>false</GradleProfilingDisabled>
+    <GradleCoverageDisabled>false</GradleCoverageDisabled>
+    <method v="2" />
   </configuration>
 </component>

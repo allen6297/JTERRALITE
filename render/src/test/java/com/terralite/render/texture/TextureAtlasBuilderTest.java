@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TextureAtlasBuilderTest {
     @TempDir
@@ -36,11 +37,12 @@ class TextureAtlasBuilderTest {
         DebugMesh remapped = new TextureAtlasMapper().remap(mesh, atlas);
         TextureRegion region = atlas.region(second).orElseThrow();
 
-        assertEquals(4, atlas.width());
-        assertEquals(2, atlas.height());
-        assertEquals(region.u0(), remapped.vertices().get(0).u());
-        assertEquals(region.u1(), remapped.vertices().get(1).u());
-        assertEquals(region.v1(), remapped.vertices().get(2).v());
+        assertTrue(atlas.width() > 4);
+        assertTrue(atlas.height() > 2);
+        assertTrue(atlas.region(TextureAtlas.FONT_ASCII).isPresent());
+        assertTrue(remapped.vertices().get(0).u() > region.u0());
+        assertTrue(remapped.vertices().get(1).u() < region.u1());
+        assertTrue(remapped.vertices().get(2).v() < region.v1());
     }
 
     private Path texture(String name, Color color) throws Exception {

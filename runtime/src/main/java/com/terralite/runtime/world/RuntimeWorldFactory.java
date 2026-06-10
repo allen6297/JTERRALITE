@@ -42,9 +42,9 @@ public final class RuntimeWorldFactory {
         Objects.requireNonNull(gameData, "gameData");
         Objects.requireNonNull(spawnAreaId, "spawnAreaId");
 
-        WorldsgenSpawnArea spawnArea = gameData.registry(TerraliteRegistries.WORLDSGEN_SPAWN_AREAS)
-                .get(spawnAreaId)
-                .orElseGet(() -> WorldsgenSpawnArea.builder().build());
+        WorldsgenSpawnArea spawnAreaResult = gameData.registry(TerraliteRegistries.WORLDSGEN_SPAWN_AREAS)
+                .get(spawnAreaId);
+        WorldsgenSpawnArea spawnArea = spawnAreaResult != null ? spawnAreaResult : WorldsgenSpawnArea.builder().build();
         try {
             BlockStateRegistry stateRegistry = BlockStateRegistry.from(gameData);
             BlockState surfaceBlock = stateRegistry.defaultState(resolveSurfaceBlock(gameData));

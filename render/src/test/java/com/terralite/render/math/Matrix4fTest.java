@@ -29,7 +29,7 @@ class Matrix4fTest {
         float f = 1.0f / (float) Math.tan(fovY * 0.5f);
 
         assertEquals(f / aspect, m[0],  EPSILON);  // m[0] = f/aspect
-        assertEquals(f,          m[5],  EPSILON);  // m[5] = f
+        assertEquals(-f,         m[5],  EPSILON);  // m[5] = -f for Vulkan Y-down NDC
         assertEquals(-1.0f,      m[11], EPSILON);  // m[11] = -1 (RH perspective)
         assertEquals(0.0f,       m[15], EPSILON);  // m[15] = 0
     }
@@ -59,7 +59,7 @@ class Matrix4fTest {
     @Test
     void cameraMatricesProducesFloat16() {
         com.terralite.render.RenderCamera camera = new com.terralite.render.RenderCamera(
-                0, 0, 10, 70.0, 0.1, 1000.0);
+                0.0f, 0.0f, 10.0f, 70.0f, 0.1f, 1000.0f);
         com.terralite.render.Viewport viewport = new com.terralite.render.Viewport(1280, 720);
 
         float[] mvp = CameraMatrices.viewProjection(camera, viewport);
