@@ -10,4 +10,7 @@ object InputActions {
     @JvmField val BREAK_BLOCK: InputAction = InputAction.of("terralite:break_block")
     @JvmField val PLACE_BLOCK: InputAction = InputAction.of("terralite:place_block")
     @JvmField val TOGGLE_CAMERA: InputAction = InputAction.of("terralite:toggle_camera")
+    @JvmField val USE_ITEM: InputAction = InputAction.of("terralite:use_item")
+    @JvmField val HOTBAR_NEXT: InputAction = InputAction.of("terralite:hotbar_next")
+    @JvmField val HOTBAR_PREV: InputAction = InputAction.of("terralite:hotbar_prev")
 }
